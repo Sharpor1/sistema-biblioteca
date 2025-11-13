@@ -1,4 +1,2 @@
 # sistema-biblioteca
-
-Recuerden crear su rama con 
-## git checkout -b "nombre"
+proyecto integrado - Inacap
