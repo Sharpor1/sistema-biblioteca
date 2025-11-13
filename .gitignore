@@ -1,0 +1,7 @@
+# Archivos Cache
+__pycache__/
+
+#Base de datos
+db.sqlite3
+
+
