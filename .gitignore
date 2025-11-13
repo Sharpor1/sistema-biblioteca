@@ -4,4 +4,6 @@ __pycache__/
 #Base de datos
 db.sqlite3
 
-
+#entorno virtual
+Pipfile
+Pipfile.lock
