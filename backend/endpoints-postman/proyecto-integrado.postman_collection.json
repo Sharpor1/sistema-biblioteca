@@ -122,44 +122,14 @@
 							"response": []
 						},
 						{
-							"name": "api/token/refresh - Renovar Token",
+							"name": "/api/token/refresh/ - Renovar Token",
 							"request": {
 								"auth": {
-									"type": "jwt",
-									"jwt": [
+									"type": "bearer",
+									"bearer": [
 										{
-											"key": "algorithm",
-											"value": "HS256",
-											"type": "string"
-										},
-										{
-											"key": "isSecretBase64Encoded",
-											"value": false,
-											"type": "boolean"
-										},
-										{
-											"key": "payload",
-											"value": "{}",
-											"type": "string"
-										},
-										{
-											"key": "addTokenTo",
-											"value": "header",
-											"type": "string"
-										},
-										{
-											"key": "headerPrefix",
-											"value": "Bearer",
-											"type": "string"
-										},
-										{
-											"key": "queryParamKey",
-											"value": "token",
-											"type": "string"
-										},
-										{
-											"key": "header",
-											"value": "{}",
+											"key": "token",
+											"value": "",
 											"type": "string"
 										}
 									]
@@ -180,6 +150,46 @@
 										"api",
 										"token",
 										"refresh",
+										""
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "/api/token/logout/ - Logout usuarios",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzYzMTUzNjkwLCJpYXQiOjE3NjMxNTMzOTAsImp0aSI6Ijg0NzlkZTdlZTY0ZDRlMGM4Zjg2MjZhMThiOWE2NTA3IiwidXNlcl9pZCI6IjE5IiwicnV0IjoiOTk5Iiwicm9sZSI6ImFkbWluaXN0cmFkb3IifQ.85YOAewzSen0fTG9WNb3ODy9Pz5PtZGBUBdVxde71d0",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "",
+										"value": "",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "http://127.0.0.1:8000/api/logout/",
+									"protocol": "http",
+									"host": [
+										"127",
+										"0",
+										"0",
+										"1"
+									],
+									"port": "8000",
+									"path": [
+										"api",
+										"logout",
 										""
 									]
 								}
