@@ -16,8 +16,13 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from usuarios.views import CustomTokenObtainPairView, CookieTokenRefreshView,LogoutView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/', include('usuarios.urls')), 
+    path('api/', include('usuarios.urls')),
+    path('api/token/', CustomTokenObtainPairView.as_view(),name= 'token_obtain_pair'),
+    path('api/token/refresh/', CookieTokenRefreshView.as_view(),name= 'token_resfresh'),
+    path('api/logout/', LogoutView.as_view(), name= 'auth_logout')
+
 ]
