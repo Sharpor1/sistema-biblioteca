@@ -1,8 +1,7 @@
-from django.shortcuts import render
 from .serializers import CustomUserSerializer, CustomTokenObtainPairSerializer
-from rest_framework import viewsets, permissions
+from rest_framework import viewsets
 from rest_framework.views import APIView
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework import status
 from .models import CustomUser
@@ -16,7 +15,7 @@ from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 class UsersViewSet(viewsets.ModelViewSet):
     queryset = CustomUser.objects.all()
     serializer_class = CustomUserSerializer
-    permission_classes = [permissions.AllowAny]
+    permissions = [IsAdminUser]
 
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
