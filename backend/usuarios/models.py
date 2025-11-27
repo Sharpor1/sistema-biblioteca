@@ -17,8 +17,8 @@ class CustomUser(AbstractUser):
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='alumno')
     rut = models.CharField(max_length=200, unique=True)
 
-    USERNAME_FIELD = 'rut'
-    REQUIRED_FIELDS = ['first_name','last_name','email']
+    USERNAME_FIELD = 'email'
+    REQUIRED_FIELDS = ['first_name','last_name']
 
     objects = UserManager()
 
