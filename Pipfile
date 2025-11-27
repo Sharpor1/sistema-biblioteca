@@ -12,6 +12,7 @@ djangorestframework = "*"
 django-cors-headers = "*"
 djangorestframework-simplejwt = {extras = ["blacklist"], version = "*"}
 requests = "*"
+rest-framework-simplejwt = "*"
 
 [dev-packages]
 

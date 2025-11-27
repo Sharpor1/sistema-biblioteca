@@ -24,8 +24,8 @@ class CustomTokenObtainPairView(TokenObtainPairView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
-        access = data.get('access')
-        refresh = data.get('refresh')
+        access = data.get('access') # aqui se crea el access para el header
+        refresh = data.get('refresh') # aqui se crea el refresh que sera almancenado en las cookies
         response = Response({'access': access}, status=status.HTTP_200_OK)
         response.set_cookie(
             key='refresh_token',
@@ -35,7 +35,7 @@ class CustomTokenObtainPairView(TokenObtainPairView):
             samesite='Lax', #stric pero Lax para que funcione con postman
             max_age=24*3600,
             path='/api/token/refresh'
-        )
+        ) #aqui se esta seteando el refresh token en la cookie
         return response
 
 class CookieTokenRefreshView(APIView):
