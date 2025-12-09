@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from .models import Prestamo, Multa
-from ..usuarios.serializers import LectorSerializer
-from ..inventario.serializers import LibroSerializer
+from usuarios.serializers import LectorSerializer
+from inventario.serializers import LibroSerializer
 from django.utils import timezone
 
 class PrestamoReadSerializer(serializers.ModelSerializer):

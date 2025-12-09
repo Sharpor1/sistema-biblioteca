@@ -20,4 +20,4 @@ class EjemplarSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Ejemplar
-        fields = ['codigoEjemplar', 'libro', 'estado', 'ubicacion', 'titulo_libro']
+        fields = ['codigoEjemplar', 'libro', 'estado', 'titulo_libro']

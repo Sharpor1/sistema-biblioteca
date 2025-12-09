@@ -14,6 +14,7 @@ djangorestframework-simplejwt = {extras = ["blacklist"], version = "*"}
 requests = "*"
 rest-framework-simplejwt = "*"
 psycopg2-binary = "*"
+drf-yasg = "*"
 
 [dev-packages]
 

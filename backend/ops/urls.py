@@ -8,5 +8,5 @@ router.register(r'multas', MultaViewSet, basename='multa')
 
 
 urlpatterns = [
-    path('api/', include(router.urls)),
+    path('', include(router.urls)),
 ]
