@@ -1,5 +1,6 @@
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.exceptions import ValidationError
 from rest_framework import status
 from django.utils import timezone
 from .models import Prestamo, Multa
@@ -10,12 +11,24 @@ from django.db import transaction
 # Create your views here.
 
 class PrestamoViewSet(viewsets.ModelViewSet):
+
     queryset = Prestamo.objects.all()
 
     def get_serializer_class(self):
         if self.action in ['list', 'retrieve']:
             return PrestamoReadSerializer
         return PrestamoWriteSerializer
+
+    def perform_create(self, serializer):
+        libro = serializer.validated_data['idLibro']
+        if libro.stock < 1:
+            raise ValidationError({'detail': f'No hay stock disponible del libro "{libro.titulo}".'})
+        with transaction.atomic():
+            libro.stock -= 1
+            libro.save()
+            serializer.save()
+
+
     @action(detail=True, methods=['post'], url_path='devolver-prestamo')
     def devolverPrestamo(self, request, pk=None):
         with transaction.atomic():
@@ -47,9 +60,43 @@ class PrestamoViewSet(viewsets.ModelViewSet):
             prestamo.estado = 'DEVUELTO'
             prestamo.fecha_devolucion_real = devolucion 
             prestamo.save()
+            # logica para inventario
+            libro_asociado = prestamo.libro
+            libro_asociado.stock += 1
+            libro_asociado.save()
 
             return Response({
                 'status': 'ok',
                 'mensaje': mensaje,
-                'multa': datosMulta
+                'multa': datosMulta,
+                'stock_actualizado': libro_asociado.stock
             })
+
+class MultaViewSet(viewsets.ModelViewSet):
+    queryset = Multa.objects.all()
+    serializer_class = MultaSerializer
+
+    @action(detail=True, methods=['post'], url_path='pagar-multa')
+    def pagar(self, request, pk=None):
+        multa = self.get_object()
+
+        if multa.estadoPago == 'pagado':
+            return Response(
+                {'detail': 'Esta multa ya fue pagada anteriormente.'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if multa.monto <= 0:
+            return Response(
+                {'detail': 'No hay deuda que pagar.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        multa.estadoPago = 'pagado'
+        multa.save()
+
+        return Response({
+            'status': 'ok',
+            'mensaje': f'Multa de ${multa.monto} pagada exitosamente.',
+            'estado_actual': multa.estadoPago
+        })
