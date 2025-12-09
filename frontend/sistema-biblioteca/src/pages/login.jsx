@@ -4,7 +4,7 @@ import { loginUser } from '../services/auth';
 
 const Login = () => {
   const navigate = useNavigate();
-  const [formData, setFormData] = useState({ email: '', password: '' });
+  const [formData, setFormData] = useState({ rut: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -23,7 +23,7 @@ const Login = () => {
     setError(''); 
 
     try {
-      await loginUser(formData.email, formData.password);
+      await loginUser(formData.rut, formData.password);
       navigate('/prestamos'); 
 
     } catch (err) {
@@ -66,10 +66,10 @@ const Login = () => {
 
           <form onSubmit={handleSubmit} className="space-y-6">
             
-            {/* Input Email */}
+            {/* Input rut */}
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-1">
-                Correo Electrónico
+              <label htmlFor="rut" className="block text-sm font-medium text-slate-700 mb-1">
+                RUT
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -78,13 +78,13 @@ const Login = () => {
                   </svg>
                 </div>
                 <input
-                  id="email"
-                  name="email"
-                  type="email" // Si usas username en Django, cambia esto a type="text"
+                  id="rut"
+                  name="rut"
+                  type="text" // Si usas username en Django, cambia esto a type="text"
                   required
                   className="pl-10 block w-full rounded-lg border-slate-300 bg-slate-50 border focus:bg-white focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm py-2.5 transition-colors duration-200 ease-in-out outline-none"
-                  placeholder="usuario@ejemplo.com"
-                  value={formData.email}
+                  placeholder="1234567-0"
+                  value={formData.rut}
                   onChange={handleChange}
                   disabled={loading} // Deshabilitar input al cargar
                 />
@@ -97,9 +97,6 @@ const Login = () => {
                 <label htmlFor="password" className="block text-sm font-medium text-slate-700">
                   Contraseña
                 </label>
-                <a href="#" className="text-sm font-medium text-indigo-600 hover:text-indigo-500">
-                  ¿Olvidaste tu contraseña?
-                </a>
               </div>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -146,12 +143,9 @@ const Login = () => {
 
           {/* Footer */}
           <div className="mt-6 text-center">
-            <p className="text-sm text-slate-500">
-              ¿No tienes cuenta?{' '}
-              <a href="#" className="font-medium text-indigo-600 hover:text-indigo-500">
-                Regístrate aquí
-              </a>
-            </p>
+            <a href="#" className="text-sm font-medium text-indigo-600 hover:text-indigo-500">
+                  ¿Olvidaste tu contraseña?
+            </a>
           </div>
         </div>
       </div>
