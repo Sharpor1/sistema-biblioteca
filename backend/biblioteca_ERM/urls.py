@@ -21,6 +21,7 @@ from usuarios.views import CustomTokenObtainPairView, CookieTokenRefreshView,Log
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include('usuarios.urls')),
+    path('api/collection/', include('inventario.urls')),
     path('api/token/', CustomTokenObtainPairView.as_view(),name= 'token_obtain_pair'),
     path('api/token/refresh/', CookieTokenRefreshView.as_view(),name= 'token_resfresh'),
     path('api/logout/', LogoutView.as_view(), name= 'auth_logout')
