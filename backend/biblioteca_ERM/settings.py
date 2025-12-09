@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+from datetime import timedelta
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -38,11 +39,11 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'usuarios',
-    'libros',
-    'prestamos',
-    'notificaciones',
+    'inventario',
+    'ops',
     'rest_framework',
     'corsheaders',
+    'rest_framework_simplejwt.token_blacklist',
 ]
 
 MIDDLEWARE = [
@@ -55,6 +56,45 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES':(
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+    ),
+    'DEFAULT_PERMISSION_CLASSES':(
+        'rest_framework.permissions.IsAuthenticated',
+    )
+}
+
+SIMPLE_JWT = {
+    'ALGORITHM' : 'HS256',
+    'SIGNING_KEY' : SECRET_KEY,
+    'ACCESS_TOKEN_LIFETIME' : timedelta(minutes=5),
+    'REFRESH_TOKEN_LIFETIME' : timedelta(days=1),
+    'ROTATE_REFRESH_TOKENS' : True,
+    'BLACKLIST_AFTER_ROTATION' :True,
+    'AUTH_HEADER_TYPES' : ('Bearer',),
+}
+
+# Seguridad de cookies y SSL (produccion)
+
+# --- Para desplegar en produccion
+
+#CSRF_COOKIE_SECURE = True
+#SESSION_COOKIE_SECURE = True
+#SECURE_SSL_REDIRECT = True
+#SECURE_HSTS_SECONDS = 31536000
+
+# --- Solo para desarrollo local (SIN HTTPS) ---
+
+CSRF_COOKIE_SECURE = False      # No usar secure si no hay HTTPS
+SESSION_COOKIE_SECURE = False   # Igual, evitar secure en local
+
+SECURE_SSL_REDIRECT = False     # No redirigir a HTTPS
+SECURE_HSTS_SECONDS = 0         # Desactivar HSTS
+SECURE_HSTS_INCLUDE_SUBDOMAINS = False
+SECURE_HSTS_PRELOAD = False
 
 ROOT_URLCONF = 'biblioteca_ERM.urls'
 
@@ -81,14 +121,22 @@ WSGI_APPLICATION = 'biblioteca_ERM.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'biblioteca_db',
+        'USER': 'postgresql',
+        'PASSWORD': 'Rinconcito-magico',
+        'HOST': 'db-biblioteca-prod.postgres.database.azure.com',
+        'PORT': '5432',
+        'OPTIONS': {
+            'sslmode': 'require',
+        },
     }
 }
 
+CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_ALL_ORIGINS = True
 
-AUTH_USER_MODEL = 'usuarios.CustomUser'
+AUTH_USER_MODEL = 'usuarios.Encargado'
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
