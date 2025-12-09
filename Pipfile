@@ -13,6 +13,7 @@ django-cors-headers = "*"
 djangorestframework-simplejwt = {extras = ["blacklist"], version = "*"}
 requests = "*"
 rest-framework-simplejwt = "*"
+psycopg2-binary = "*"
 
 [dev-packages]
 

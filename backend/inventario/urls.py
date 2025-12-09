@@ -1,10 +1,9 @@
 from rest_framework.routers import DefaultRouter
-from .views import BookViewSet , GeneroViewSet
+from .views import LibroViewSet
 from django.urls import path, include
 
 router = DefaultRouter()
-router.register(r'books', BookViewSet, basename='book')
-router.register(r'generos', GeneroViewSet, basename='genero')
+router.register(r'libros', LibroViewSet, basename='libro')
 
 urlpatterns = [
     path('', include(router.urls)),
