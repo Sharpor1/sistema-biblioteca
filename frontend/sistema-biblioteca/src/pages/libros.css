@@ -1,0 +1,81 @@
+/* Estilos para la página de Libros (estáticos) */
+.lb-page {
+  padding: 28px;
+  font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+  color: #222;
+}
+.lb-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+}
+.lb-header h1 { margin: 0; font-size: 22px; }
+.subtitle { margin: 4px 0 0 0; color: #6b7280; font-size: 13px }
+.btn-primary {
+  background: #6f3ff5;
+  color: #fff;
+  border: none;
+  padding: 10px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+}
+.btn-secondary {
+  background: #fff;
+  color: #374151;
+  border: 1px solid #e5e7eb;
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.lb-list { display: flex; flex-direction: column; gap: 14px; }
+.lb-card {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  padding: 16px;
+  background: #fff;
+  border: 1px solid #eef2f7;
+  border-radius: 10px;
+  box-shadow: 0 1px 0 rgba(15,23,42,0.02);
+}
+.lb-card.baja { background: #fff0f1; border-color: #f5c6c8; }
+.lb-card-left { width: 72px; display:flex; align-items:center; justify-content:center }
+.icon-box { width: 48px; height:48px; border-radius:10px; background: #eef2ff; display:flex; align-items:center; justify-content:center; font-size:22px }
+.lb-card-body { flex: 1; display:flex; flex-direction:column; gap:10px }
+.title-row { display:flex; justify-content:space-between; gap:24px }
+.lb-title { font-weight: 700; font-size:16px }
+.lb-author { color:#6b7280; margin-top:6px; font-size:13px }
+.meta { display:flex; gap:24px; color:#374151; font-size:13px; align-items:center }
+.stats-row { display:flex; gap:18px; color:#6b7280; font-size:13px }
+.stat { display:flex; align-items:center; gap:8px }
+.dot { width:10px; height:10px; border-radius:50%; display:inline-block }
+.dot.blue { background:#3b82f6 }
+.dot.green { background:#10b981 }
+.dot.orange { background:#f97316 }
+
+.lb-card-actions { display:flex; gap:8px }
+.action { background:transparent; border:1px solid #f1f5f9; padding:8px; border-radius:8px; cursor:pointer }
+
+/* Modal */
+.modal-overlay { position:fixed; inset:0; background:rgba(15,23,42,0.5); display:flex; align-items:center; justify-content:center; z-index:50 }
+.modal { width:640px; background:#fff; border-radius:10px; box-shadow:0 10px 30px rgba(2,6,23,0.2); overflow:hidden }
+.modal-header { display:flex; justify-content:space-between; align-items:center; padding:18px 20px; border-bottom:1px solid #eef2f7 }
+.modal-header h3 { margin:0 }
+.close { background:transparent; border:none; font-size:20px; cursor:pointer }
+.modal-body { padding:18px 20px; display:flex; flex-direction:column; gap:12px }
+.form-row { display:grid; grid-template-columns: 1fr 1fr; gap:12px; align-items:center }
+.form-row.single { grid-template-columns: 1fr }
+.form-row label { font-size:12px; color:#6b7280 }
+.form-row input { padding:10px; border-radius:8px; border:1px solid #e6e9ef; background:#f8fafc }
+.form-row input.input-error { border-color: #ef4444; box-shadow: 0 0 0 3px rgba(239,68,68,0.06) }
+.error-text { color: #b91c1c; font-size:12px; margin-top:6px }
+.modal-actions { display:flex; justify-content:flex-end; gap:10px; padding-top:6px }
+
+@media (max-width: 700px) {
+  .modal { width: calc(100% - 32px) }
+  .title-row { flex-direction:column }
+  .meta { flex-direction:column; gap:6px }
+}

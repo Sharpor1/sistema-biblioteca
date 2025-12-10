@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom'; // 1. Importar herra
 import './App.css';
 import LoansManager from './pages/gestion_prestamos';
 import Login from './pages/login';
+import Libros from './pages/libros';
 
 function App() {  
   return (
@@ -12,6 +13,7 @@ function App() {
       <Route path="/login" element={<Login />} />
       
       <Route path="/prestamos" element={<LoansManager />} />
+      <Route path="/libros" element={<Libros />} />
 
     </Routes>
   )
