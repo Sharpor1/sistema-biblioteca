@@ -84,14 +84,14 @@ SIMPLE_JWT = {
 
 # Lista de dominios que pueden enviar formularios (POST) a tu Django
 CSRF_TRUSTED_ORIGINS = [
-    "https://rinconcitomagico-d2ejfmc8aebdbqag.canadacentral-01.azurewebsites.net/",          # Tu URL del backend
-    "https://gentle-glacier-04565a81e.3.azurestaticapps.net/",   # <--- LA URL DE TU FRONTEND (Static Web App)
+    "https://rinconcitomagico-d2ejfmc8aebdbqag.canadacentral-01.azurewebsites.net",          # Tu URL del backend
+    "https://gentle-glacier-04565a81e.3.azurestaticapps.net",   # <--- LA URL DE TU FRONTEND (Static Web App)
     "http://localhost:5173",                         # Para cuando pruebes en local
 ]
 
 # Configuración de CORS (Permitir peticiones del front al back)
 CORS_ALLOWED_ORIGINS = [
-    "https://gentle-glacier-04565a81e.3.azurestaticapps.net/",   # <--- LA URL DE TU FRONTEND
+    "https://gentle-glacier-04565a81e.3.azurestaticapps.net",   # <--- LA URL DE TU FRONTEND
     "http://localhost:5173",
 ]
 
