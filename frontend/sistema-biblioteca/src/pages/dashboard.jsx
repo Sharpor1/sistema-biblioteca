@@ -21,6 +21,7 @@ export default function Dashboard() {
     prestamosHoy: 0,
     devolucionesHoy: 0,
     usuariosConMultas: 0,
+    multasPagadasHoy: 0,
     usuariosConPrestamosAtrasados: 0,
   });
   const [loading, setLoading] = useState(true);
@@ -117,6 +118,14 @@ export default function Dashboard() {
         );
         const usuariosConMultas = usuariosConMultasUnicos.size;
 
+        // Multas pagadas hoy
+        const multasPagadasHoy = multas.filter(m => {
+          if (m.estadoPago !== 'pagada' && m.estadoPago !== 'PAGADA') return false;
+          if (!m.fechaMulta) return false;
+          const fecha = new Date(m.fechaMulta);
+          return fecha >= inicioDelDia && fecha < finDelDia;
+        }).length;
+
         // Usuarios únicos con préstamos atrasados
         const usuariosConPrestamosAtrasadosUnicos = new Set(
           prestamos
@@ -139,6 +148,7 @@ export default function Dashboard() {
           prestamosHoy,
           devolucionesHoy,
           usuariosConMultas,
+          multasPagadasHoy,
           usuariosConPrestamosAtrasados,
         });
       } catch (err) {
@@ -186,15 +196,52 @@ export default function Dashboard() {
 
     // Obtener información del libro para cada préstamo
     const prestamosConDetalles = prestamosHoy.map(p => {
-      const ejemplar = datosCompletos.ejemplares.find(e => e.codigoEjemplar === (p.codigoEjemplar?.codigoEjemplar || p.codigoEjemplar));
+      // codigoEjemplar puede venir como ID o como objeto
+      const ejemplarId = typeof p.codigoEjemplar === 'object' ? p.codigoEjemplar?.id : p.codigoEjemplar;
+      
+      // Buscar el ejemplar por ID
+      const ejemplar = datosCompletos.ejemplares.find(e => e.id === ejemplarId || e.idEjemplar === ejemplarId);
+      
+      // Buscar el libro por ID del ejemplar
       const libro = ejemplar ? datosCompletos.libros.find(l => l.idLibro === ejemplar.libro) : null;
-      return { ...p, libro, ejemplar };
+      
+      // También intentar usar el libro que viene en el préstamo si existe
+      const libroFinal = libro || p.libro;
+      
+      return { ...p, libro: libroFinal, ejemplar };
+    });
+
+    // Obtener renovaciones del día (préstamos que fueron renovados hoy)
+    const renovacionesHoy = datosCompletos.prestamos.filter(p => {
+      // Aquí asumimos que hay una fecha de última renovación, si no existe, usar otra lógica
+      if (!p.renovacionesUtilizadas || p.renovacionesUtilizadas === 0) return false;
+      // Por ahora mostraremos todos los préstamos con renovaciones activas
+      return p.estado === 'activo' || p.estado === 'atrasado';
+    }).map(p => {
+      const ejemplarId = typeof p.codigoEjemplar === 'object' ? p.codigoEjemplar?.id : p.codigoEjemplar;
+      const ejemplar = datosCompletos.ejemplares.find(e => e.id === ejemplarId || e.idEjemplar === ejemplarId);
+      const libro = ejemplar ? datosCompletos.libros.find(l => l.idLibro === ejemplar.libro) : null;
+      const libroFinal = libro || p.libro;
+      return { ...p, libro: libroFinal, ejemplar };
+    });
+
+    // Obtener devoluciones del día con información completa
+    const devolucionesConDetalles = devolucionesHoy.map(p => {
+      const ejemplarId = typeof p.codigoEjemplar === 'object' ? p.codigoEjemplar?.id : p.codigoEjemplar;
+      const ejemplar = datosCompletos.ejemplares.find(e => e.id === ejemplarId || e.idEjemplar === ejemplarId);
+      const libro = ejemplar ? datosCompletos.libros.find(l => l.idLibro === ejemplar.libro) : null;
+      const libroFinal = libro || p.libro;
+      return { ...p, libro: libroFinal, ejemplar };
     });
 
     const multasConLector = multasHoy.map(m => {
       const prestamo = datosCompletos.prestamos.find(p => p.idPrestamo === m.idPrestamo);
-      const ejemplar = datosCompletos.ejemplares.find(e => e.codigoEjemplar === (prestamo?.codigoEjemplar?.codigoEjemplar || prestamo?.codigoEjemplar));
-      return { ...m, prestamo, ejemplar };
+      if (prestamo) {
+        const ejemplarId = typeof prestamo.codigoEjemplar === 'object' ? prestamo.codigoEjemplar?.id : prestamo.codigoEjemplar;
+        const ejemplar = datosCompletos.ejemplares.find(e => e.id === ejemplarId || e.idEjemplar === ejemplarId);
+        return { ...m, prestamo, ejemplar };
+      }
+      return { ...m, prestamo, ejemplar: null };
     });
 
     const multasPagadas = datosCompletos.multas.filter(m => {
@@ -319,18 +366,51 @@ export default function Dashboard() {
       <tr>
         <th>Usuario (Nombre y RUT)</th>
         <th>Código del libro</th>
-        <th>Días de renovación</th>
+        <th>Título</th>
+        <th>Renovaciones utilizadas</th>
         <th>Fecha nueva de devolución</th>
       </tr>
     </thead>
     <tbody>
-      <tr class="empty-row">
-        <td colspan="4">No se realizaron renovaciones en esta fecha</td>
-      </tr>
+      ${renovacionesHoy.length > 0 ? renovacionesHoy.map(p => `
+        <tr>
+          <td>${p.lector?.nombreCompleto || 'N/A'} (${p.lector?.rut || 'N/A'})</td>
+          <td>${p.ejemplar?.codigoEjemplar || 'N/A'}</td>
+          <td>${p.libro?.titulo || 'N/A'}</td>
+          <td>${p.renovacionesUtilizadas || 0}</td>
+          <td>${p.fecha_devolucion ? new Date(p.fecha_devolucion).toLocaleDateString('es-CL') : 'N/A'}</td>
+        </tr>
+      `).join('') : '<tr class="empty-row"><td colspan="5">No se realizaron renovaciones en esta fecha</td></tr>'}
     </tbody>
   </table>
 
-  <h2><span class="section-number">3.</span> Multas registradas:</h2>
+  <h2><span class="section-number">3.</span> Devoluciones realizadas:</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Código del libro</th>
+        <th>Título</th>
+        <th>Usuario (Nombre y RUT)</th>
+        <th>Tipo de usuario</th>
+        <th>Fecha de préstamo</th>
+        <th>Fecha de devolución</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${devolucionesConDetalles.length > 0 ? devolucionesConDetalles.map(p => `
+        <tr>
+          <td>${p.ejemplar?.codigoEjemplar || 'N/A'}</td>
+          <td>${p.libro?.titulo || 'N/A'}</td>
+          <td>${p.lector?.nombreCompleto || 'N/A'} (${p.lector?.rut || 'N/A'})</td>
+          <td>${p.lector?.rol?.nombre || p.lector?.tipoUsuario || 'N/A'}</td>
+          <td>${new Date(p.fecha_prestamo).toLocaleDateString('es-CL')}</td>
+          <td>${p.fecha_devolucion_real ? new Date(p.fecha_devolucion_real).toLocaleDateString('es-CL') : 'N/A'}</td>
+        </tr>
+      `).join('') : '<tr class="empty-row"><td colspan="6">No se realizaron devoluciones en esta fecha</td></tr>'}
+    </tbody>
+  </table>
+
+  <h2><span class="section-number">4.</span> Multas registradas:</h2>
   <table>
     <thead>
       <tr>
@@ -352,44 +432,7 @@ export default function Dashboard() {
     </tbody>
   </table>
 
-  <h2><span class="section-number">4.</span> Pagos de multas:</h2>
-  <table>
-    <thead>
-      <tr>
-        <th>Usuario (Nombre y RUT)</th>
-        <th>Monto pagado</th>
-        <th>Fecha de pago</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${multasPagadas.length > 0 ? multasPagadas.map(m => {
-        const prestamo = datosCompletos.prestamos.find(p => p.idPrestamo === m.idPrestamo);
-        return `
-        <tr>
-          <td>${prestamo?.lector?.nombreCompleto || 'N/A'} (${prestamo?.lector?.rut || 'N/A'})</td>
-          <td>$${parseFloat(m.monto || 0).toLocaleString('es-CL')}</td>
-          <td>${new Date(m.fechaMulta).toLocaleDateString('es-CL')}</td>
-        </tr>
-      `}).join('') : '<tr class="empty-row"><td colspan="3">No se realizaron pagos de multas en esta fecha</td></tr>'}
-    </tbody>
-  </table>
-
-  <h2><span class="section-number">5.</span> Préstamos no realizados:</h2>
-  <table>
-    <thead>
-      <tr>
-        <th>Usuario (Nombre y RUT)</th>
-        <th>Motivo (multa, retraso, límite alcanzado)</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr class="empty-row">
-        <td colspan="2">No se registraron préstamos no realizados</td>
-      </tr>
-    </tbody>
-  </table>
-
-  <h2><span class="section-number">6.</span> Observaciones:</h2>
+  <h2><span class="section-number">5.</span> Observaciones:</h2>
   <div class="observaciones-box">${observaciones || ''}</div>
 
   <div style="margin-top: 40px; text-align: center; font-size: 11px; color: #666;" class="no-print">
@@ -527,10 +570,10 @@ export default function Dashboard() {
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <StatCard
-                  label="Usuarios con Multas Pendientes"
-                  value={stats.usuariosConMultas}
-                  color="rose"
-                  icon="warning"
+                  label="Multas Pagadas Hoy"
+                  value={stats.multasPagadasHoy}
+                  color="emerald"
+                  icon="check"
                   link="/usuarios"
                 />
                 <StatCard
@@ -637,26 +680,6 @@ export default function Dashboard() {
                   value={stats.prestamosFinalizados}
                   color="slate"
                   icon="check"
-                  link="/prestamos"
-                />
-              </div>
-            </section>
-
-            {/* Sección: Multas */}
-            <section>
-              <h2 className="text-lg font-bold text-slate-800 mb-3 flex items-center gap-2">
-                <svg className="h-5 w-5 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                Multas
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
-                <StatCard
-                  label="Multas Pendientes de Pago"
-                  value={stats.multasPendientes}
-                  color="rose"
-                  icon="warning"
-                  large
                   link="/prestamos"
                 />
               </div>

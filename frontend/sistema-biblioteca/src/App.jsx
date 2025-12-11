@@ -6,6 +6,7 @@ import Libros from './pages/libros';
 import NuevoPrestamo from './pages/nuevo_prestamo';
 import Usuarios from './pages/usuarios';
 import Dashboard from './pages/dashboard';
+import HistorialMultas from './pages/historial_multas';
 
 function App() {  
   return (
@@ -20,6 +21,7 @@ function App() {
       <Route path="/prestamos/nuevo" element={<NuevoPrestamo />} />
       <Route path="/libros" element={<Libros />} />
       <Route path="/usuarios" element={<Usuarios />} />
+      <Route path="/historial-multas" element={<HistorialMultas />} />
 
     </Routes>
   )

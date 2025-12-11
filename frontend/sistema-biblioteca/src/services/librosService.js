@@ -83,4 +83,3 @@ export const activarEjemplar = async (codigoEjemplar, libroId) => {
     throw error;
   }
 };
-

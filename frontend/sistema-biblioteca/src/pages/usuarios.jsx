@@ -78,7 +78,34 @@ export default function Usuarios() {
       if (err.response?.data?.rol) {
         setError('Error: Los tipos de usuario no existen en la base de datos. Por favor, créalos primero en Django Admin (/admin).');
       } else {
-        const errorMsg = err.response?.data ? JSON.stringify(err.response.data) : 'No se pudo crear el usuario';
+        // Procesar mensajes de error del backend
+        let errorMsg = 'No se pudo crear el usuario';
+        if (err.response?.data) {
+          const data = err.response.data;
+          const mensajes = [];
+          
+          if (data.rut) {
+            mensajes.push('El RUT ya está registrado en el sistema');
+          }
+          if (data.contacto) {
+            mensajes.push('El contacto (email/teléfono) ya está registrado');
+          }
+          if (data.nombreCompleto) {
+            mensajes.push('Nombre completo: ' + (Array.isArray(data.nombreCompleto) ? data.nombreCompleto[0] : data.nombreCompleto));
+          }
+          if (data.detail) {
+            mensajes.push(data.detail);
+          }
+          
+          // Si no hay mensajes específicos, usar el JSON completo
+          if (mensajes.length > 0) {
+            errorMsg = mensajes.join('. ');
+          } else if (typeof data === 'string') {
+            errorMsg = data;
+          } else {
+            errorMsg = JSON.stringify(data);
+          }
+        }
         setError(`Error: ${errorMsg}`);
       }
     }
@@ -180,9 +207,14 @@ export default function Usuarios() {
                             <span className="font-medium">{u.nombreCompleto}</span>
                             {u.tipoUsuario && (
                               u.tipoUsuario.toLowerCase().includes('docente') || u.tipoUsuario.toLowerCase().includes('profesor') ? (
-                                <span className="text-base" title="Docente">👨‍🏫</span>
+                                <svg className="w-5 h-5 text-pink-500" fill="currentColor" viewBox="0 0 24 24" title="Docente">
+                                  <path d="M12 2L1 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-11-5zm0 2.18l9 4.09v6.73c0 4.52-3.07 8.78-7.5 10.08V14l-1.5-1.5-1.5 1.5v11.08C6.07 23.78 3 19.52 3 15V8.27l9-4.09z"/>
+                                  <circle cx="12" cy="10" r="3"/>
+                                </svg>
                               ) : (
-                                <span className="text-base" title="Estudiante">🎓</span>
+                                <svg className="w-5 h-5 text-purple-500" fill="currentColor" viewBox="0 0 24 24" title="Estudiante">
+                                  <path d="M12 3L1 9l4 2.18v6L12 21l7-3.82v-6l2-1.09V17h2V9L12 3zm6.82 6L12 12.72 5.18 9 12 5.28 18.82 9zM17 15.99l-5 2.73-5-2.73v-3.72L12 15l5-2.73v3.72z"/>
+                                </svg>
                               )
                             )}
                           </div>
@@ -274,9 +306,14 @@ export default function Usuarios() {
                 <h3 className="text-lg font-bold text-slate-900">Detalles del Usuario</h3>
                 {selectedUser.tipoUsuario && (
                   selectedUser.tipoUsuario.toLowerCase().includes('docente') || selectedUser.tipoUsuario.toLowerCase().includes('profesor') ? (
-                    <span className="text-lg" title="Docente">👨‍🏫</span>
+                    <svg className="w-6 h-6 text-pink-500" fill="currentColor" viewBox="0 0 24 24" title="Docente">
+                      <path d="M12 2L1 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-11-5zm0 2.18l9 4.09v6.73c0 4.52-3.07 8.78-7.5 10.08V14l-1.5-1.5-1.5 1.5v11.08C6.07 23.78 3 19.52 3 15V8.27l9-4.09z"/>
+                      <circle cx="12" cy="10" r="3"/>
+                    </svg>
                   ) : (
-                    <span className="text-lg" title="Estudiante">🎓</span>
+                    <svg className="w-6 h-6 text-purple-500" fill="currentColor" viewBox="0 0 24 24" title="Estudiante">
+                      <path d="M12 3L1 9l4 2.18v6L12 21l7-3.82v-6l2-1.09V17h2V9L12 3zm6.82 6L12 12.72 5.18 9 12 5.28 18.82 9zM17 15.99l-5 2.73-5-2.73v-3.72L12 15l5-2.73v3.72z"/>
+                    </svg>
                   )
                 )}
               </div>
