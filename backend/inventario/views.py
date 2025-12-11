@@ -11,6 +11,7 @@ class LibroViewSet(viewsets.ModelViewSet):
     queryset = Libro.objects.all()
     serializer_class = LibroSerializer
 
+
 class EjemplarViewSet(viewsets.ModelViewSet):
     queryset = Ejemplar.objects.all()
     serializer_class = EjemplarSerializer
@@ -52,3 +53,4 @@ class EjemplarViewSet(viewsets.ModelViewSet):
         ejemplar.save()
         
         return Response({"status": "Ejemplar activado correctamente"})
+    
