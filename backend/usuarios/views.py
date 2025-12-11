@@ -1,4 +1,4 @@
-from .serializers import LectorSerializer, CustomTokenObtainPairSerializer
+from .serializers import LectorSerializer, LectorWriteSerializer, CustomTokenObtainPairSerializer
 from rest_framework import viewsets
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
@@ -14,8 +14,12 @@ from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 # Create your views here.
 
 class UsersViewSet(viewsets.ModelViewSet):
-    serializer_class = LectorSerializer
     permission_classes = [IsAuthenticated]
+    
+    def get_serializer_class(self):
+        if self.action in ['create', 'update', 'partial_update']:
+            return LectorWriteSerializer
+        return LectorSerializer
     
     def get_queryset(self):
         queryset = Lector.objects.all()

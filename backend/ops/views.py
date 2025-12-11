@@ -33,7 +33,7 @@ class PrestamoViewSet(viewsets.ModelViewSet):
         prestamos_activos = Prestamo.objects.filter(lector=estadoLector, estado='activo').count()
         limite_maximo = estadoLector.rol.cupoPrestamoMax
 
-        if Prestamo.objects.filter(lector=estadoLector, estado='activo', libro=ejemplar_fisico.libro).exists():
+        if Prestamo.objects.filter(lector=estadoLector, estado='activo', codigoEjemplar__libro=ejemplar_fisico.libro).exists():
             raise ValidationError({'detail': f'El lector ya tiene un ejemplar prestado del libro "{ejemplar_fisico.libro}". Debe devolverlo antes de solicitar otro igual.'})
         
         if prestamos_activos >= limite_maximo:
@@ -44,10 +44,10 @@ class PrestamoViewSet(viewsets.ModelViewSet):
             raise ValidationError({'detail': f'No hay stock disponible del libro "{ejemplar_fisico.libro}".'})
         
         with transaction.atomic():
-            ejemplar_fisico.estado = 'Prestado'
+            ejemplar_fisico.estado = 'prestado'
             ejemplar_fisico.save()
             print("estado ejemplar:", ejemplar_fisico.estado)
-            serializer.save(libro=ejemplar_fisico.libro)
+            serializer.save()
 
 
     @action(detail=True, methods=['post'], url_path='devolver-prestamo')

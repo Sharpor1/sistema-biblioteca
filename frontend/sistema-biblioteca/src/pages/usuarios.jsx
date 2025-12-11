@@ -11,6 +11,8 @@ export default function Usuarios() {
   ]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [showUserDetails, setShowUserDetails] = useState(false);
 
   const [form, setForm] = useState({ rut: '', nombreCompleto: '', contacto: '', rol: 1, estado: 'activo' });
   const [errors, setErrors] = useState({});
@@ -106,9 +108,25 @@ export default function Usuarios() {
           ) : (
             <div className="space-y-3">
               {users.map((u) => (
-                <div key={u.id} className="border rounded p-3 flex justify-between items-center">
+                <div 
+                  key={u.id} 
+                  className="border rounded p-3 flex justify-between items-center cursor-pointer hover:bg-slate-50 transition-colors"
+                  onClick={() => {
+                    setSelectedUser(u);
+                    setShowUserDetails(true);
+                  }}
+                >
                   <div>
-                    <div className="font-medium">{u.nombreCompleto}</div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">{u.nombreCompleto}</span>
+                      {u.tipoUsuario && (
+                        u.tipoUsuario.toLowerCase().includes('docente') || u.tipoUsuario.toLowerCase().includes('profesor') ? (
+                          <span className="text-base" title="Docente">👨‍🏫</span>
+                        ) : (
+                          <span className="text-base" title="Estudiante">🎓</span>
+                        )
+                      )}
+                    </div>
                     <div className="text-sm text-slate-500">{u.rut} • {u.tipoUsuario || tiposUsuario.find(t => t.idTipo === u.rol)?.nombre}</div>
                   </div>
                   <div className="text-sm text-slate-500">{u.contacto}</div>
@@ -153,6 +171,92 @@ export default function Usuarios() {
                 <button type="submit" className="px-3 py-1 bg-indigo-600 text-white rounded">Registrar Usuario</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Detalles de Usuario */}
+      {showUserDetails && selectedUser && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 overflow-hidden">
+            <div className="flex justify-between items-center px-6 py-4 border-b border-slate-200">
+              <div className="flex items-center gap-2">
+                <h3 className="text-lg font-bold text-slate-900">Detalles del Usuario</h3>
+                {selectedUser.tipoUsuario && (
+                  selectedUser.tipoUsuario.toLowerCase().includes('docente') || selectedUser.tipoUsuario.toLowerCase().includes('profesor') ? (
+                    <span className="text-lg" title="Docente">👨‍🏫</span>
+                  ) : (
+                    <span className="text-lg" title="Estudiante">🎓</span>
+                  )
+                )}
+              </div>
+              <button onClick={() => setShowUserDetails(false)} className="text-slate-400 hover:text-slate-600 text-2xl leading-none">×</button>
+            </div>
+            
+            <div className="p-6 space-y-4">
+              <div className="bg-slate-50 p-4 rounded-lg">
+                <p className="text-xs text-slate-600 mb-1">Nombre Completo</p>
+                <p className="text-base font-semibold text-slate-900">{selectedUser.nombreCompleto}</p>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-slate-50 p-3 rounded-lg">
+                  <p className="text-xs text-slate-600 mb-1">RUT</p>
+                  <p className="text-sm font-medium text-slate-900">{selectedUser.rut}</p>
+                </div>
+                <div className="bg-slate-50 p-3 rounded-lg">
+                  <p className="text-xs text-slate-600 mb-1">Tipo</p>
+                  <p className="text-sm font-medium text-slate-900">{selectedUser.tipoUsuario || selectedUser.rol?.nombre || 'N/A'}</p>
+                </div>
+              </div>
+              
+              <div className="bg-slate-50 p-4 rounded-lg">
+                <p className="text-xs text-slate-600 mb-1">Contacto (Email)</p>
+                <p className="text-sm font-medium text-slate-900">{selectedUser.contacto || 'No registrado'}</p>
+              </div>
+              
+              <div className="bg-slate-50 p-4 rounded-lg">
+                <p className="text-xs text-slate-600 mb-1">Estado</p>
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                  selectedUser.estado === 'activo' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                }`}>
+                  {selectedUser.estado === 'activo' ? 'Activo' : 'Bloqueado'}
+                </span>
+              </div>
+
+              {selectedUser.rol && (
+                <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-100">
+                  <p className="text-xs text-indigo-600 font-semibold mb-2">Límites de Préstamo</p>
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <p className="text-xs text-slate-600">Días Mínimo</p>
+                      <p className="font-semibold text-slate-900">{selectedUser.rol.diasPrestamoMin || 'N/A'} días</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-600">Días Máximo</p>
+                      <p className="font-semibold text-slate-900">{selectedUser.rol.diasPrestamoMax || 'N/A'} días</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-600">Libros Simultáneos</p>
+                      <p className="font-semibold text-slate-900">{selectedUser.rol.cupoPrestamoMax || 'N/A'} libros</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-600">Renovaciones</p>
+                      <p className="font-semibold text-slate-900">{selectedUser.rol.maxRenovaciones || 'N/A'} veces</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="px-6 py-4 border-t border-slate-200 bg-slate-50">
+              <button 
+                onClick={() => setShowUserDetails(false)}
+                className="w-full px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 text-sm font-medium"
+              >
+                Cerrar
+              </button>
+            </div>
           </div>
         </div>
       )}

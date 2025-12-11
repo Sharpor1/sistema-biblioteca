@@ -28,8 +28,14 @@ class TipoUsuarioSerializer(serializers.ModelSerializer):
      
 class LectorSerializer(serializers.ModelSerializer):
     
-    tipoUsuario= serializers.CharField(source='rol.nombre', read_only=True)
+    tipoUsuario = serializers.CharField(source='rol.nombre', read_only=True)
+    rol = TipoUsuarioSerializer(read_only=True)
 
     class Meta:
         model = Lector
         fields = ['id', 'rut', 'nombreCompleto', 'contacto', 'rol', 'tipoUsuario', 'estado']
+
+class LectorWriteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Lector
+        fields = ['id', 'rut', 'nombreCompleto', 'contacto', 'rol', 'estado']
