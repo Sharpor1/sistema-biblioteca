@@ -29,6 +29,24 @@ class PrestamoViewSet(viewsets.ModelViewSet):
         if estadoLector.estado == 'bloqueado':
             raise ValidationError({'detail': 'El lector se encuentra BLOQUEADO y no puede realizar préstamos.'})
         
+        # Verificar si tiene multas pendientes
+        multas_pendientes = Multa.objects.filter(
+            idPrestamo__lector=estadoLector,
+            estadoPago='pendiente'
+        ).exists()
+        
+        if multas_pendientes:
+            raise ValidationError({'detail': 'El lector tiene multas pendientes. Debe pagarlas antes de realizar un nuevo préstamo.'})
+        
+        # Verificar si tiene préstamos atrasados
+        prestamos_atrasados = Prestamo.objects.filter(
+            lector=estadoLector,
+            estado='atrasado'
+        ).exists()
+        
+        if prestamos_atrasados:
+            raise ValidationError({'detail': 'El lector tiene préstamos atrasados. Debe devolverlos antes de realizar un nuevo préstamo.'})
+        
         print(f"Ejemplar detectado: {ejemplar_fisico}")
         print(f"Estado actual del ejemplar en BD: '{ejemplar_fisico.estado}'")
         
@@ -50,8 +68,8 @@ class PrestamoViewSet(viewsets.ModelViewSet):
         if prestamos_activos >= limite_maximo:
             raise ValidationError({'detail': f'El lector ya tiene {prestamos_activos} libros prestados. El límite es {limite_maximo}.'})
         
-        if ejemplar_fisico.habilitado == False:
-            raise ValidationError({'detail': f'El ejemplar "{ejemplar_fisico.codigoEjemplar}" no está habilitado para préstamo.'})
+        # if ejemplar_fisico.habilitado == False:
+        #     raise ValidationError({'detail': f'El ejemplar "{ejemplar_fisico.codigoEjemplar}" no está habilitado para préstamo.'})
 
         if ejemplar_fisico.estado != 'disponible':
             print("entrando en error")
@@ -88,11 +106,8 @@ class PrestamoViewSet(viewsets.ModelViewSet):
                     idPrestamo=prestamo,
                     diasRetraso=diferencia,
                     monto=totalMulta,
-                    estadoPago='pendiente',
+                    estadoPago='pagada',  # Auto-pagada para testing
                 )
-                estadoLector = prestamo.lector
-                estadoLector.estado = 'bloqueado'
-                estadoLector.save()
                 mensaje = f"Libro devuelto con RETRASO. Se generó una multa de ${totalMulta}."
                 datosMulta = {'id': multa.idMulta, 'monto': multa.monto}
             
@@ -102,6 +117,18 @@ class PrestamoViewSet(viewsets.ModelViewSet):
             inventarion_ejemplar.save()
             prestamo.fecha_devolucion_real = devolucion 
             prestamo.save()
+            
+            # Verificar si el usuario aún tiene préstamos atrasados
+            # Si no tiene más préstamos atrasados, desbloquear el usuario
+            lector = prestamo.lector
+            tiene_prestamos_atrasados = Prestamo.objects.filter(
+                lector=lector,
+                estado='atrasado'
+            ).exists()
+            
+            if not tiene_prestamos_atrasados and lector.estado == 'bloqueado':
+                lector.estado = 'activo'
+                lector.save()
             
 
             return Response({

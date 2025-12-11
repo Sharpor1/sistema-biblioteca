@@ -229,9 +229,14 @@ export default function NuevoPrestamo() {
                       <span>{u.nombreCompleto}</span>
                       {u.rol?.nombre && (
                         u.rol.nombre.toLowerCase().includes('docente') || u.rol.nombre.toLowerCase().includes('profesor') ? (
-                          <span className="text-sm" title="Docente">👨‍🏫</span>
+                          <svg className="w-4 h-4 text-pink-500" fill="currentColor" viewBox="0 0 24 24" title="Docente">
+                            <path d="M12 2L1 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-11-5zm0 2.18l9 4.09v6.73c0 4.52-3.07 8.78-7.5 10.08V14l-1.5-1.5-1.5 1.5v11.08C6.07 23.78 3 19.52 3 15V8.27l9-4.09z"/>
+                            <circle cx="12" cy="10" r="3"/>
+                          </svg>
                         ) : (
-                          <span className="text-sm" title="Estudiante">🎓</span>
+                          <svg className="w-4 h-4 text-purple-500" fill="currentColor" viewBox="0 0 24 24" title="Estudiante">
+                            <path d="M12 3L1 9l4 2.18v6L12 21l7-3.82v-6l2-1.09V17h2V9L12 3zm6.82 6L12 12.72 5.18 9 12 5.28 18.82 9zM17 15.99l-5 2.73-5-2.73v-3.72L12 15l5-2.73v3.72z"/>
+                          </svg>
                         )
                       )}
                     </div>

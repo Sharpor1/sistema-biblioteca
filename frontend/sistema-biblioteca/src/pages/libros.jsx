@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
 import Sidebar from '../components/Sidebar';
-import "./libros.css";
 import { fetchLibros, fetchEjemplares, createLibro, createEjemplar, darBajaEjemplar, activarEjemplar as activarEjemplarService } from '../services/librosService';
 
 export default function Libros() {
@@ -140,6 +139,8 @@ export default function Libros() {
 			alert(`Error al desactivar el libro: ${errorMsg}`);
 		}
 	}
+
+
 
 	async function desactivarEjemplar(ejemplar) {
 		if (ejemplar.estado === 'prestado') {
@@ -443,7 +444,7 @@ export default function Libros() {
 												>
 													{book.titulo}
 													{book.ejemplares.length > 0 && book.ejemplares.every(e => e.estado === 'baja') && 
-														<span className="ml-2 text-xs text-rose-600 font-semibold">(Desactivado)</span>
+														<span className="ml-2 text-xs text-rose-600 font-semibold">(Fuera de Stock)</span>
 													}
 												</div>
 												<div className="text-xs text-slate-500">ID: #{book.idLibro}</div>
@@ -473,7 +474,6 @@ export default function Libros() {
 													>
 														Ver Ejemplares
 													</button>
-
 												</div>
 										</td>
 									</tr>
@@ -622,7 +622,16 @@ export default function Libros() {
 														{ej.prestadoA && (
 															<div className="mt-3 p-3 bg-amber-50 border-l-4 border-amber-400 rounded">
 																<div className="flex items-center gap-2 mb-1">
-																	<span className="text-lg">{ej.prestadoA.tipoUsuario === 'Docente' ? '👨‍🏫' : '🎓'}</span>
+																	{ej.prestadoA.tipoUsuario === 'Docente' ? (
+																		<svg className="w-5 h-5 text-pink-500" fill="currentColor" viewBox="0 0 24 24" title="Docente">
+																			<path d="M12 2L1 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-11-5zm0 2.18l9 4.09v6.73c0 4.52-3.07 8.78-7.5 10.08V14l-1.5-1.5-1.5 1.5v11.08C6.07 23.78 3 19.52 3 15V8.27l9-4.09z"/>
+																			<circle cx="12" cy="10" r="3"/>
+																		</svg>
+																	) : (
+																		<svg className="w-5 h-5 text-purple-500" fill="currentColor" viewBox="0 0 24 24" title="Estudiante">
+																			<path d="M12 3L1 9l4 2.18v6L12 21l7-3.82v-6l2-1.09V17h2V9L12 3zm6.82 6L12 12.72 5.18 9 12 5.28 18.82 9zM17 15.99l-5 2.73-5-2.73v-3.72L12 15l5-2.73v3.72z"/>
+																		</svg>
+																	)}
 																	<div className="font-semibold text-amber-900">{ej.prestadoA.lector}</div>
 																</div>
 																<div className="text-sm text-amber-700 mt-1">
@@ -640,7 +649,7 @@ export default function Libros() {
 													}`}>
 														{ej.estado === 'disponible' ? 'Disponible' : 
 														 ej.estado === 'prestado' ? 'Prestado' : 
-														 'Desactivado'}
+														 'Fuera de Stock'}
 													</span>
 													{ej.estado === 'disponible' && (
 														<button 
@@ -667,7 +676,7 @@ export default function Libros() {
 								{selectedBook.ejemplares.every(e => e.estado === 'baja') && selectedBook.ejemplares.length > 0 && (
 									<div className="mt-4 p-3 bg-rose-50 border border-rose-200 rounded-lg">
 										<p className="text-sm text-rose-700">
-											<strong>⚠️ Libro Desactivado:</strong> Todos los ejemplares de este libro están dados de baja.
+										<strong>⚠️ Fuera de Stock:</strong> Todos los ejemplares de este libro están dados de baja.
 										</p>
 									</div>
 								)}
