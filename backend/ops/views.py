@@ -1,6 +1,8 @@
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError
+from django.db.models import Count, Q, F
+from inventario.models import Libro
 from rest_framework import status
 from django.utils import timezone
 from .models import Prestamo, Multa
@@ -39,6 +41,9 @@ class PrestamoViewSet(viewsets.ModelViewSet):
         if prestamos_activos >= limite_maximo:
             raise ValidationError({'detail': f'El lector ya tiene {prestamos_activos} libros prestados. El límite es {limite_maximo}.'})
         
+        if ejemplar_fisico.habilitado == False:
+            raise ValidationError({'detail': f'El ejemplar "{ejemplar_fisico.codigoEjemplar}" no está habilitado para préstamo.'})
+
         if ejemplar_fisico.estado != 'disponible':
             print("entrando en error")
             raise ValidationError({'detail': f'No hay stock disponible del libro "{ejemplar_fisico.libro}".'})
@@ -95,6 +100,35 @@ class PrestamoViewSet(viewsets.ModelViewSet):
                 'mensaje': mensaje,
                 'multa': datosMulta,
             })
+        @action(detail=True, methods=['post'], url_path='renovar-prestamo')
+        def renovar_prestamo(self, request, pk=None):
+            prestamo = self.get_object()
+            usuarioLector = prestamo.lector
+
+            if usuarioLector.estado == 'bloqueado':
+             return Response(
+                 {'detail': 'Su cuenta está bloqueada. No puede renovar libros.'}, 
+                 status=status.HTTP_400_BAD_REQUEST
+             )
+
+            if prestamo.fecha_devolucion < timezone.now():
+                return Response({'detail': 'No se puede renovar un préstamo vencido. Por favor, devuelva el libro primero.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            if prestamo.estado == 'finalizado':
+                return Response({'detail': 'El préstamo ya ha sido devuelto y no puede ser renovado.'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            if prestamo.renovacionesUtilizadas >= usuarioLector.rol.maxRenovaciones:
+                return Response({'detail': 'El préstamo ya ha sido renovado hasta su limite'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            nuevo_vencimiento = prestamo.fecha_devolucion + timezone.timedelta(days=usuarioLector.rol.diasPrestamoMax)
+            prestamo.fecha_devolucion = nuevo_vencimiento
+            prestamo.renovacionesUtilizadas += 1
+            prestamo.save()
+            return Response({
+                'status': 'ok',
+                'mensaje': f'Préstamo renovado exitosamente. Nueva fecha de vencimiento: {nuevo_vencimiento.date()}.'
+            })
+        
 
 class MultaViewSet(viewsets.ModelViewSet):
     queryset = Multa.objects.all()
@@ -127,3 +161,67 @@ class MultaViewSet(viewsets.ModelViewSet):
             'mensaje': f'Multa de ${multa.monto} pagada exitosamente.',
             'estado_actual': multa.estadoPago
         })
+    
+class reportesViewSet(viewsets.ViewSet):
+
+    @action(detail=False, methods=['get'], url_path='reporte-prestamos-activos')
+    def reporte_prestamos_activos(self, request):
+        hoy = timezone.now().date()
+        prestamos_activos = Prestamo.objects.filter(estado='activo').select_related('lector', 'libro', 'codigoEjemplar')
+        reporte_prestamos_activos = []
+        for p in prestamos_activos:
+            es_retrasado = p.fecha_devolucion and p.fecha_devolucion < hoy
+            estado = "Retrasado" if es_retrasado else "Al día"
+
+            reporte_prestamos_activos.append({
+                "id_prestamo": p.idPrestamo,
+                "libro": p.libro.titulo,
+                "usuario": f"{p.lector.nombre} {p.lector.apellido}",
+                "tipo_usuario": p.lector.rol.nombre if p.lector.rol else "Sin rol",
+                "fecha_prestamo": p.fecha_prestamo.date(),
+                "fecha_vencimiento": p.fecha_devolucion.date() if p.fecha_devolucion else None,
+                "estado_etiqueta": estado
+            })
+        return Response(reporte_prestamos_activos)
+
+    @action(detail=False, methods=['get'], url_path='reporte-multas-pendientes')
+    def reporte_multas_pendientes(self, request):
+        multas_pendientes = Multa.objects.filter(estadoPago='pendiente').select_related('idPrestamo__lector', 'idPrestamo__libro')
+        reporte_multas_pendientes = []
+        
+        for m in multas_pendientes:
+            reporte_multas_pendientes.append({
+                "id_multa": m.idMulta,
+                "libro": m.idPrestamo.libro.titulo,
+                "usuario": f"{m.idPrestamo.lector.nombre} {m.idPrestamo.lector.apellido}",
+                "tipo_usuario": m.idPrestamo.lector.rol.nombre if m.idPrestamo.lector.rol else "Sin rol",
+                "dias_retraso": m.diasRetraso,
+                "monto": m.monto,
+            })
+        return Response(reporte_multas_pendientes)
+    
+    @action(detail=False, methods=['get'], url_path='reporte-renovaciones')
+    def reporte_renovaciones(self, request):
+        prestamos_renovados = Prestamo.objects.filter(renovacionesUtilizadas__gt=0).select_related('lector', 'libro')
+        reporte_renovaciones = []
+        
+        for p in prestamos_renovados:
+            reporte_renovaciones.append({
+                "libro": p.libro.titulo,
+                "usuario": f"{p.lector.nombre} {p.lector.apellido}",
+                "tipo_usuario": p.lector.rol.nombre if p.lector.rol else "Sin rol",
+                "fecha_prestamo": p.fecha_prestamo.date(),
+                "renovaciones_utilizadas": p.renovacionesUtilizadas,
+            })
+        return Response(reporte_renovaciones)
+    
+    @action(detail=False, methods=['get'], url_path='stock-disponible')
+    def stock_disponible(self, request):
+        libros = Libro.objects.annotate(
+            disponibles=Count('ejemplar', filter=Q(ejemplar__estado__iexact='disponible'))
+        ).filter(disponibles__gt=0).values('titulo', 'autor', 'isbn', 'disponibles')
+        
+        
+        return Response(libros)
+
+    

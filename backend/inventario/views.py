@@ -15,6 +15,14 @@ class EjemplarViewSet(viewsets.ModelViewSet):
     queryset = Ejemplar.objects.all()
     serializer_class = EjemplarSerializer
 
+
+    def perform_create(self, serializer):
+        serializer.save(estado='disponible')
+        habilitarLibro = serializer.validated_data['libro']
+        habilitarLibro.habilitado = True
+        habilitarLibro.save()
+
+
     @action(detail=True, methods=['post'], url_path='dar-baja')
     def dar_baja(self, request, pk=None):
         ejemplar = self.get_object()
@@ -29,3 +37,4 @@ class EjemplarViewSet(viewsets.ModelViewSet):
         ejemplar.save()
         
         return Response({"status": "Ejemplar dado de baja correctamente"})
+    
