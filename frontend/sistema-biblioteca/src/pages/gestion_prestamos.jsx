@@ -2,18 +2,47 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import { fetchPrestamos, devolverPrestamo } from '../services/prestamosService';
+import { fetchEjemplares } from '../services/librosService';
 
 const LoansManager = () => {
   const [loans, setLoans] = useState([]);
+  const [ejemplares, setEjemplares] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('todos');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 4;
 
   useEffect(() => {
     const load = async () => {
       try {
         setLoading(true);
-        const data = await fetchPrestamos();
-        setLoans(data);
+        const [prestamosData, ejemplaresData] = await Promise.all([
+          fetchPrestamos(),
+          fetchEjemplares()
+        ]);
+        
+        // Enriquecer préstamos con código de ejemplar
+        const prestamosEnriquecidos = prestamosData.map(prestamo => {
+          let codigoEjemplarReal = prestamo.codigoEjemplar;
+          
+          // Si codigoEjemplar es solo un ID numérico, buscar el código real
+          if (typeof prestamo.codigoEjemplar === 'number') {
+            const ejemplar = ejemplaresData.find(e => e.id === prestamo.codigoEjemplar);
+            if (ejemplar) {
+              codigoEjemplarReal = ejemplar.codigoEjemplar;
+            }
+          }
+          
+          return {
+            ...prestamo,
+            codigoEjemplarTexto: codigoEjemplarReal
+          };
+        });
+        
+        setLoans(prestamosEnriquecidos);
+        setEjemplares(ejemplaresData);
       } catch (err) {
         setError('No se pudieron cargar los préstamos');
       } finally {
@@ -66,9 +95,34 @@ const LoansManager = () => {
   async function confirmReturn() {
     try {
       await devolverPrestamo(returningLoan.idPrestamo);
-      setLoans((prev) => prev.filter((l) => l.idPrestamo !== returningLoan.idPrestamo));
+      // Recargar la lista completa con códigos de ejemplares
+      const [prestamosData, ejemplaresData] = await Promise.all([
+        fetchPrestamos(),
+        fetchEjemplares()
+      ]);
+      
+      const prestamosEnriquecidos = prestamosData.map(prestamo => {
+        let codigoEjemplarReal = prestamo.codigoEjemplar;
+        
+        if (typeof prestamo.codigoEjemplar === 'number') {
+          const ejemplar = ejemplaresData.find(e => e.id === prestamo.codigoEjemplar);
+          if (ejemplar) {
+            codigoEjemplarReal = ejemplar.codigoEjemplar;
+          }
+        }
+        
+        return {
+          ...prestamo,
+          codigoEjemplarTexto: codigoEjemplarReal
+        };
+      });
+      
+      setLoans(prestamosEnriquecidos);
+      setEjemplares(ejemplaresData);
+      alert('Préstamo devuelto correctamente');
     } catch (err) {
       setError('No se pudo registrar la devolución');
+      alert('Error al devolver: ' + (err.response?.data?.detail || err.message));
     } finally {
       closeReturn();
     }
@@ -141,13 +195,24 @@ const LoansManager = () => {
                <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400">
                   <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                </span>
-               <input type="text" placeholder="Buscar por libro o usuario..." className="pl-10 w-full py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors" />
+               <input 
+                 type="text" 
+                 placeholder="Buscar por libro o usuario..." 
+                 value={searchTerm}
+                 onChange={(e) => setSearchTerm(e.target.value)}
+                 className="pl-10 w-full py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors" 
+               />
             </div>
             <div className="flex gap-2">
-                <select className="py-2 pl-3 pr-8 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:border-indigo-500 text-slate-600">
-                    <option>Todos los estados</option>
-                    <option>Atrasados</option>
-                    <option>En curso</option>
+                <select 
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="py-2 pl-3 pr-8 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:border-indigo-500 text-slate-600"
+                >
+                    <option value="todos">Todos los estados</option>
+                    <option value="activo">Activo</option>
+                    <option value="atrasado">Atrasado</option>
+                    <option value="finalizado">Finalizado</option>
                 </select>
             </div>
           </div>
@@ -156,34 +221,91 @@ const LoansManager = () => {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-slate-50/50 border-b border-slate-200 text-xs uppercase text-slate-500 font-semibold tracking-wider">
-                  <th className="px-6 py-4">Código Ejemplar</th>
+                  <th className="px-6 py-4">Libro / Ejemplar</th>
                   <th className="px-6 py-4">Lector</th>
                   <th className="px-6 py-4">Fecha Préstamo</th>
-                  <th className="px-6 py-4">Fecha Devolución</th>
+                  <th className="px-6 py-4">Devolución Pactada</th>
+                  <th className="px-6 py-4">Devolución Real</th>
                   <th className="px-6 py-4">Estado</th>
                   <th className="px-6 py-4 text-right">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {loading ? (
-                  <tr><td className="px-6 py-4 text-sm text-slate-500" colSpan={6}>Cargando...</td></tr>
+                  <tr><td className="px-6 py-4 text-sm text-slate-500" colSpan={7}>Cargando...</td></tr>
                 ) : (
-                loans.map((loan) => (
+                (() => {
+                  const filteredLoans = loans
+                    .filter(loan => {
+                      // Filtro por estado
+                      if (statusFilter !== 'todos' && loan.estado !== statusFilter) return false;
+                      
+                      // Filtro por búsqueda
+                      if (searchTerm) {
+                        const search = searchTerm.toLowerCase();
+                        const nombreUsuario = (loan.lector?.nombreCompleto || '').toLowerCase();
+                        const codigoEj = (loan.codigoEjemplar?.codigoEjemplar || loan.codigoEjemplar || '').toString().toLowerCase();
+                        const nombreLibro = (loan.libro?.titulo || loan.codigoEjemplar?.libro?.titulo || '').toLowerCase();
+                        
+                        return nombreUsuario.includes(search) || codigoEj.includes(search) || nombreLibro.includes(search);
+                      }
+                      
+                      return true;
+                    })
+                    // Ordenar: activos primero, luego atrasados, finalmente finalizados
+                    .sort((a, b) => {
+                      const orderMap = { 'activo': 1, 'atrasado': 2, 'finalizado': 3 };
+                      return (orderMap[a.estado] || 999) - (orderMap[b.estado] || 999);
+                    });
+                  
+                  const totalPages = Math.ceil(filteredLoans.length / itemsPerPage);
+                  const startIndex = (currentPage - 1) * itemsPerPage;
+                  const paginatedLoans = filteredLoans.slice(startIndex, startIndex + itemsPerPage);
+                  
+                  return paginatedLoans.map((loan) => (
                   <tr key={loan.idPrestamo} className="hover:bg-slate-50/80 transition-colors duration-150">
                     <td className="px-6 py-4">
-                        <div className="font-medium text-slate-800">{loan.codigoEjemplar?.codigoEjemplar || loan.codigoEjemplar || '-'}</div>
-                        <div className="text-xs text-slate-400">ID: #{loan.idPrestamo}</div>
+                        <div className="font-semibold text-slate-900 text-base">{loan.libro?.titulo || loan.codigoEjemplar?.libro?.titulo || 'Libro no especificado'}</div>
+                        <div className="text-sm text-slate-700 mt-1 font-semibold">Ejemplar: {loan.codigoEjemplarTexto || loan.codigoEjemplar?.codigoEjemplar || '-'}</div>
+                        <div className="text-xs text-slate-400 mt-0.5">ID Préstamo: #{loan.idPrestamo}</div>
                     </td>
                     <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                             <div className="h-8 w-8 rounded-full bg-slate-200 flex items-center justify-center text-xs font-bold text-slate-600">
                                 {loan.lector?.nombreCompleto ? loan.lector.nombreCompleto.charAt(0) : (loan.lector?.charAt ? loan.lector.charAt(0) : '?')}
                             </div>
-                            <span className="text-slate-600 text-sm">{loan.lector?.nombreCompleto || loan.lector || '-'}</span>
+                            <div>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-slate-600 text-sm">{loan.lector?.nombreCompleto || loan.lector || '-'}</span>
+                                    {loan.lector?.rol?.nombre && (
+                                        loan.lector.rol.nombre.toLowerCase().includes('docente') || loan.lector.rol.nombre.toLowerCase().includes('profesor') ? (
+                                            <span className="text-xs text-indigo-600" title="Docente">👨‍🏫</span>
+                                        ) : (
+                                            <span className="text-xs text-emerald-600" title="Estudiante">🎓</span>
+                                        )
+                                    )}
+                                </div>
+                                {loan.lector?.rol?.nombre && (
+                                    <span className="text-xs text-slate-400">{loan.lector.rol.nombre}</span>
+                                )}
+                            </div>
                         </div>
                     </td>
-                    <td className="px-6 py-4 text-sm text-slate-600">{loan.fecha_prestamo}</td>
-                    <td className="px-6 py-4 text-sm text-slate-600">{loan.fecha_devolucion}</td>
+                    <td className="px-6 py-4 text-sm text-slate-600">
+                      {loan.fecha_prestamo ? new Date(loan.fecha_prestamo).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-'}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-slate-600">
+                      {loan.fecha_devolucion ? new Date(loan.fecha_devolucion).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-'}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-slate-600">
+                      {loan.fecha_devolucion_real ? (
+                        <span className="text-emerald-600 font-medium">
+                          {new Date(loan.fecha_devolucion_real).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                        </span>
+                      ) : (
+                        <span className="text-slate-400">Pendiente</span>
+                      )}
+                    </td>
                     <td className="px-6 py-4">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(loan.estado)}`}>
                         <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${loan.estado === 'activo' ? 'bg-emerald-500' : loan.estado === 'atrasado' ? 'bg-rose-500' : 'bg-slate-500'}`}></span>
@@ -191,31 +313,68 @@ const LoansManager = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right">
-                        <button onClick={() => openReturn(loan)} className="text-emerald-600 hover:text-emerald-800 text-sm font-medium hover:underline">Devolver</button>
-                        <button className="text-slate-400 hover:text-slate-600 transition-colors ml-3">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" /></svg>
-                        </button>
+                        {loan.estado !== 'finalizado' ? (
+                            <button onClick={() => openReturn(loan)} className="text-emerald-600 hover:text-emerald-800 text-sm font-medium hover:underline">Devolver</button>
+                        ) : (
+                            <span className="text-slate-400 text-sm">Finalizado</span>
+                        )}
                     </td>
                   </tr>
-                ))
+                  ));
+                })()
                 )}
                 {error && (
                   <tr>
-                    <td className="px-6 py-4 text-sm text-rose-600" colSpan={6}>{error}</td>
+                    <td className="px-6 py-4 text-sm text-rose-600" colSpan={7}>{error}</td>
                   </tr>
                 )}
               </tbody>
             </table>
           </div>
           
-          {/* Paginación simple */}
-          <div className="p-4 border-t border-slate-100 flex justify-between items-center text-sm text-slate-500">
-            <span>Mostrando 4 de 24 resultados</span>
-            <div className="flex gap-2">
-                <button className="px-3 py-1 border border-slate-200 rounded hover:bg-slate-50 disabled:opacity-50" disabled>Anterior</button>
-                <button className="px-3 py-1 border border-slate-200 rounded hover:bg-slate-50">Siguiente</button>
-            </div>
-          </div>
+          {/* Paginación */}
+          {(() => {
+            const filteredLoans = loans.filter(loan => {
+              if (statusFilter !== 'todos' && loan.estado !== statusFilter) return false;
+              if (searchTerm) {
+                const search = searchTerm.toLowerCase();
+                const nombreUsuario = (loan.lector?.nombreCompleto || '').toLowerCase();
+                const codigoEj = (loan.codigoEjemplar?.codigoEjemplar || loan.codigoEjemplar || '').toString().toLowerCase();
+                const nombreLibro = (loan.libro?.titulo || loan.codigoEjemplar?.libro?.titulo || '').toLowerCase();
+                return nombreUsuario.includes(search) || codigoEj.includes(search) || nombreLibro.includes(search);
+              }
+              return true;
+            });
+            
+            const totalPages = Math.ceil(filteredLoans.length / itemsPerPage);
+            const startIndex = (currentPage - 1) * itemsPerPage + 1;
+            const endIndex = Math.min(currentPage * itemsPerPage, filteredLoans.length);
+            
+            if (filteredLoans.length === 0) return null;
+            
+            return (
+              <div className="p-4 border-t border-slate-100 flex justify-between items-center text-sm text-slate-500">
+                <span>Mostrando {startIndex} a {endIndex} de {filteredLoans.length} resultados</span>
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    className="px-3 py-1 border border-slate-200 rounded hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed" 
+                    disabled={currentPage === 1}
+                  >
+                    Anterior
+                  </button>
+                  <span className="px-3 py-1">Página {currentPage} de {totalPages}</span>
+                  <button 
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    className="px-3 py-1 border border-slate-200 rounded hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={currentPage === totalPages}
+                  >
+                    Siguiente
+                  </button>
+                </div>
+              </div>
+            );
+          })()}
         </div>
 
         {/* Return Loan Modal */}

@@ -30,7 +30,57 @@ export const updateEjemplar = async (idEjemplar, payload) => {
   return data;
 };
 
-export const darBajaEjemplar = async (idEjemplar) => {
-  const { data } = await api.post(`/inventario/ejemplares/${idEjemplar}/dar-baja/`);
-  return data;
+export const darBajaEjemplar = async (codigoEjemplar, libroId) => {
+  try {
+    // Obtener todos los ejemplares
+    const { data: todosEjemplares } = await api.get('/inventario/ejemplares/');
+    
+    // Buscar el ejemplar que coincida con el código Y el libro
+    const ejemplar = todosEjemplares.find(e => 
+      e.codigoEjemplar === codigoEjemplar && e.libro === libroId
+    );
+    
+    if (!ejemplar) {
+      throw new Error(`Ejemplar con código ${codigoEjemplar} no encontrado`);
+    }
+    
+    if (!ejemplar.id) {
+      throw new Error('El ejemplar no tiene ID');
+    }
+    
+    // Usar el ID del ejemplar para dar de baja
+    const { data } = await api.post(`/inventario/ejemplares/${ejemplar.id}/dar-baja/`);
+    return data;
+  } catch (error) {
+    console.error('Error en darBajaEjemplar:', error);
+    throw error;
+  }
 };
+
+export const activarEjemplar = async (codigoEjemplar, libroId) => {
+  try {
+    // Obtener todos los ejemplares
+    const { data: todosEjemplares } = await api.get('/inventario/ejemplares/');
+    
+    // Buscar el ejemplar que coincida con el código Y el libro
+    const ejemplar = todosEjemplares.find(e => 
+      e.codigoEjemplar === codigoEjemplar && e.libro === libroId
+    );
+    
+    if (!ejemplar) {
+      throw new Error(`Ejemplar con código ${codigoEjemplar} no encontrado`);
+    }
+    
+    if (!ejemplar.id) {
+      throw new Error('El ejemplar no tiene ID');
+    }
+    
+    // Usar el ID del ejemplar para activar
+    const { data } = await api.post(`/inventario/ejemplares/${ejemplar.id}/activar/`);
+    return data;
+  } catch (error) {
+    console.error('Error en activarEjemplar:', error);
+    throw error;
+  }
+};
+

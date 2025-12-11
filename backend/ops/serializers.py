@@ -6,7 +6,8 @@ from django.utils import timezone
 
 class PrestamoReadSerializer(serializers.ModelSerializer):
     lector = LectorSerializer(read_only=True)
-    libro = LibroSerializer(read_only=True)
+    libro = LibroSerializer(read_only=True, source='codigoEjemplar.libro')
+    
     class Meta:
         model = Prestamo
         fields = '__all__'
@@ -16,7 +17,7 @@ class PrestamoWriteSerializer(serializers.ModelSerializer):
     class Meta:
         model = Prestamo
         fields = '__all__'
-        read_only_fields = ['fecha_devolucion_estimada','libro', 'renovacionesUtilizadas']
+        read_only_fields = ['fecha_devolucion_estimada', 'renovacionesUtilizadas']
 
     def validate(self, data):
         fecha_prestamo = data.get('fecha_prestamo')

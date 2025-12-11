@@ -38,3 +38,17 @@ class EjemplarViewSet(viewsets.ModelViewSet):
         
         return Response({"status": "Ejemplar dado de baja correctamente"})
     
+    @action(detail=True, methods=['post'], url_path='activar')
+    def activar(self, request, pk=None):
+        ejemplar = self.get_object()
+        
+        if ejemplar.estado == 'PRESTADO':
+            return Response(
+                {"error": "No se puede activar un ejemplar que está prestado."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        ejemplar.estado = 'DISPONIBLE'
+        ejemplar.save()
+        
+        return Response({"status": "Ejemplar activado correctamente"})

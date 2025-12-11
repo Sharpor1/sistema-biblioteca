@@ -1,16 +1,18 @@
 import React, { useState, useRef, useEffect } from "react";
 import Sidebar from '../components/Sidebar';
 import "./libros.css";
-import { fetchLibros, fetchEjemplares, createLibro, darBajaEjemplar } from '../services/librosService';
+import { fetchLibros, fetchEjemplares, createLibro, createEjemplar, darBajaEjemplar, activarEjemplar as activarEjemplarService } from '../services/librosService';
 
 export default function Libros() {
 	const [books, setBooks] = useState([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState('');
-	const [editingBook, setEditingBook] = useState(null);
+	const [searchTerm, setSearchTerm] = useState('');
 	const [isModalOpen, setIsModalOpen] = useState(false);
 	const [selectedBook, setSelectedBook] = useState(null);
 	const [showEjemplares, setShowEjemplares] = useState(false);
+	const [showAddEjemplar, setShowAddEjemplar] = useState(false);
+	const [ejemplarForm, setEjemplarForm] = useState({ codigoEjemplar: '', estado: 'disponible' });
 	const [form, setForm] = useState({
 		titulo: "",
 		autor: "",
@@ -37,17 +39,50 @@ export default function Libros() {
 		const load = async () => {
 			try {
 				setLoading(true);
-				const [libros, ejemplares] = await Promise.all([
+				const { fetchPrestamos } = await import('../services/prestamosService');
+				const [libros, ejemplares, prestamos] = await Promise.all([
 					fetchLibros(),
 					fetchEjemplares(),
+					fetchPrestamos().catch(() => []),
 				]);
+				
+				// Crear mapa de ejemplares prestados
+				const ejemplaresPrestados = {};
+				prestamos.filter(p => p.estado === 'activo').forEach(p => {
+					// El codigoEjemplar puede venir como ID o como objeto
+					let ejemplarId = null;
+					let codigoEj = null;
+					
+					if (typeof p.codigoEjemplar === 'object' && p.codigoEjemplar !== null) {
+						// Es un objeto anidado
+						codigoEj = p.codigoEjemplar.codigoEjemplar;
+					} else if (typeof p.codigoEjemplar === 'number') {
+						// Es solo el ID, necesito buscar el código en ejemplares
+						ejemplarId = p.codigoEjemplar;
+						const ejemplar = ejemplares.find(e => e.id === ejemplarId);
+						if (ejemplar) {
+							codigoEj = ejemplar.codigoEjemplar;
+						}
+					}
+					
+					if (codigoEj) {
+						ejemplaresPrestados[codigoEj] = {
+							lector: p.lector?.nombreCompleto || p.lector,
+							fechaDevolucion: p.fecha_devolucion,
+							tipoUsuario: p.lector?.tipoUsuario || p.lector?.rol?.nombre || ''
+						};
+					}
+				});
+				
 				const ejemplaresPorLibro = ejemplares.reduce((acc, ej) => {
 					if (!acc[ej.libro]) acc[ej.libro] = [];
+					const prestado = ejemplaresPrestados[ej.codigoEjemplar];
 					acc[ej.libro].push({
 						id: ej.id,
 						idEjemplar: ej.id,
 						codigoEjemplar: ej.codigoEjemplar,
 						estado: ej.estado?.toLowerCase?.() || ej.estado || 'disponible',
+						prestadoA: prestado,
 					});
 					return acc;
 				}, {});
@@ -82,19 +117,10 @@ export default function Libros() {
 		}
 		if (!confirm(`¿Desactivar todos los ejemplares de "${book.titulo}"?`)) return;
 		try {
-			// Obtener todos los ejemplares con sus IDs reales
-			const todosEjemplares = await fetchEjemplares();
-			
 			for (const ejemplar of disponibles) {
-				const ejemplarCompleto = todosEjemplares.find(e => e.codigoEjemplar === ejemplar.codigoEjemplar);
-				if (ejemplarCompleto) {
-					const ejemplarId = Object.keys(ejemplarCompleto).map(key => 
-						typeof ejemplarCompleto[key] === 'number' && key !== 'libro' ? ejemplarCompleto[key] : null
-					).filter(v => v !== null)[0];
-					
-					console.log(`Desactivando ejemplar ${ejemplar.codigoEjemplar} con ID:`, ejemplarId);
-					await darBajaEjemplar(ejemplarId);
-				}
+				console.log(`Desactivando ejemplar: ${ejemplar.codigoEjemplar} del libro ID: ${book.idLibro}`);
+				// Pasar tanto el código como el ID del libro
+				await darBajaEjemplar(ejemplar.codigoEjemplar, book.idLibro);
 			}
 			
 			await recargarDatos();
@@ -124,23 +150,9 @@ export default function Libros() {
 		}
 		if (!confirm(`¿Desactivar ejemplar ${ejemplar.codigoEjemplar}?`)) return;
 		try {
-			// Obtener todos los ejemplares para encontrar el ID
-			const todosEjemplares = await fetchEjemplares();
-			const ejemplarCompleto = todosEjemplares.find(e => e.codigoEjemplar === ejemplar.codigoEjemplar);
-			
-			if (!ejemplarCompleto) {
-				alert('No se pudo encontrar el ejemplar.');
-				return;
-			}
-			
-			console.log('Ejemplar encontrado:', ejemplarCompleto);
-			// Usar el primer número que encuentre en el objeto (debería ser el id)
-			const ejemplarId = Object.keys(ejemplarCompleto).map(key => 
-				typeof ejemplarCompleto[key] === 'number' && key !== 'libro' ? ejemplarCompleto[key] : null
-			).filter(v => v !== null)[0];
-			
-			console.log('ID encontrado:', ejemplarId);
-			await darBajaEjemplar(ejemplarId);
+			console.log('Desactivando ejemplar:', ejemplar.codigoEjemplar, 'del libro ID:', selectedBook.idLibro);
+			// Pasar tanto el código como el ID del libro
+			await darBajaEjemplar(ejemplar.codigoEjemplar, selectedBook.idLibro);
 			await recargarDatos();
 			alert('Ejemplar desactivado correctamente.');
 			// Actualizar libro seleccionado
@@ -155,8 +167,69 @@ export default function Libros() {
 		}
 	}
 
+	async function activarEjemplar(ejemplar) {
+		if (ejemplar.estado === 'prestado') {
+			alert('Este ejemplar está en préstamo. No se puede activar.');
+			return;
+		}
+		if (ejemplar.estado === 'disponible') {
+			alert('Este ejemplar ya está disponible.');
+			return;
+		}
+		if (!confirm(`¿Activar ejemplar ${ejemplar.codigoEjemplar}?`)) return;
+		try {
+			console.log('Activando ejemplar:', ejemplar.codigoEjemplar, 'del libro ID:', selectedBook.idLibro);
+			await activarEjemplarService(ejemplar.codigoEjemplar, selectedBook.idLibro);
+			await recargarDatos();
+			alert('Ejemplar activado correctamente.');
+			// Actualizar libro seleccionado
+			if (selectedBook) {
+				const updated = books.find(b => b.idLibro === selectedBook.idLibro);
+				if (updated) setSelectedBook(updated);
+			}
+		} catch (err) {
+			console.error('Error activando ejemplar:', err);
+			const errorMsg = err.response?.data?.error || err.response?.data?.detail || err.message || 'Error desconocido';
+			alert(`Error al activar el ejemplar: ${errorMsg}`);
+		}
+	}
+
 	async function recargarDatos() {
-		const [libros, ejemplares] = await Promise.all([fetchLibros(), fetchEjemplares()]);
+		const { fetchPrestamos } = await import('../services/prestamosService');
+		const [libros, ejemplares, prestamos] = await Promise.all([
+			fetchLibros(), 
+			fetchEjemplares(),
+			fetchPrestamos().catch(() => [])
+		]);
+		
+		// Crear mapa de ejemplares prestados
+		const ejemplaresPrestados = {};
+		prestamos.filter(p => p.estado === 'activo').forEach(p => {
+			// El codigoEjemplar puede venir como ID o como objeto
+			let ejemplarId = null;
+			let codigoEj = null;
+			
+			if (typeof p.codigoEjemplar === 'object' && p.codigoEjemplar !== null) {
+				// Es un objeto anidado
+				codigoEj = p.codigoEjemplar.codigoEjemplar;
+			} else if (typeof p.codigoEjemplar === 'number') {
+				// Es solo el ID, necesito buscar el código en ejemplares
+				ejemplarId = p.codigoEjemplar;
+				const ejemplar = ejemplares.find(e => e.id === ejemplarId);
+				if (ejemplar) {
+					codigoEj = ejemplar.codigoEjemplar;
+				}
+			}
+			
+			if (codigoEj) {
+				ejemplaresPrestados[codigoEj] = {
+					lector: p.lector?.nombreCompleto || p.lector,
+					fechaDevolucion: p.fecha_devolucion,
+					tipoUsuario: p.lector?.tipoUsuario || p.lector?.rol?.nombre || ''
+				};
+			}
+		});
+		
 		const ejemplaresPorLibro = ejemplares.reduce((acc, ej) => {
 			if (!acc[ej.libro]) acc[ej.libro] = [];
 			acc[ej.libro].push({
@@ -164,6 +237,7 @@ export default function Libros() {
 				idEjemplar: ej.id,
 				codigoEjemplar: ej.codigoEjemplar,
 				estado: ej.estado?.toLowerCase?.() || ej.estado || 'disponible',
+				prestadoA: ejemplaresPrestados[ej.codigoEjemplar] || null,
 			});
 			return acc;
 		}, {});
@@ -172,6 +246,45 @@ export default function Libros() {
 			ejemplares: ejemplaresPorLibro[lib.idLibro] || [],
 		}));
 		setBooks(merged);
+	}
+
+	function generarCodigoEjemplar(libro) {
+		// Generar código único basado en título del libro y timestamp
+		const prefix = libro.titulo.substring(0, 3).toUpperCase().replace(/\s/g, '');
+		const timestamp = Date.now().toString().slice(-6);
+		return `${prefix}${timestamp}`;
+	}
+
+	function openAddEjemplarModal(libro) {
+		const codigoGenerado = generarCodigoEjemplar(libro);
+		setEjemplarForm({ codigoEjemplar: codigoGenerado, estado: 'disponible' });
+		setSelectedBook(libro);
+		setShowAddEjemplar(true);
+	}
+
+	async function handleCreateEjemplar(e) {
+		e.preventDefault();
+		if (!ejemplarForm.codigoEjemplar.trim()) {
+			alert('El código del ejemplar es requerido');
+			return;
+		}
+		try {
+			await createEjemplar({
+				codigoEjemplar: ejemplarForm.codigoEjemplar.trim(),
+				libro: selectedBook.idLibro,
+				estado: ejemplarForm.estado
+			});
+			await recargarDatos();
+			// Actualizar libro seleccionado
+			const updated = books.find(b => b.idLibro === selectedBook.idLibro);
+			if (updated) setSelectedBook(updated);
+			setShowAddEjemplar(false);
+			alert('Ejemplar creado correctamente');
+		} catch (err) {
+			console.error('Error creando ejemplar:', err);
+			const errorMsg = err.response?.data?.codigoEjemplar?.[0] || err.response?.data?.detail || 'Error al crear ejemplar';
+			alert(errorMsg);
+		}
 	}
 
 	function handleChange(e) {
@@ -270,6 +383,22 @@ export default function Libros() {
 
 				{/* Table */}
 				<div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+					<div className="p-5 border-b border-slate-100">
+						<div className="relative w-full sm:w-80">
+							<span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400">
+								<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+									<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+								</svg>
+							</span>
+							<input 
+								type="text" 
+								placeholder="Buscar por título, autor o ISBN..." 
+								value={searchTerm}
+								onChange={(e) => setSearchTerm(e.target.value)}
+								className="pl-10 w-full py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
+							/>
+						</div>
+					</div>
 					<div className="overflow-x-auto">
 						<table className="w-full text-left border-collapse">
 							<thead>
@@ -287,7 +416,15 @@ export default function Libros() {
 								{loading ? (
 									<tr><td className="px-6 py-4 text-sm text-slate-500" colSpan={7}>Cargando...</td></tr>
 								) : (
-									books.map((book) => (
+									books
+										.filter(book => {
+											if (!searchTerm) return true;
+											const search = searchTerm.toLowerCase();
+											return book.titulo.toLowerCase().includes(search) || 
+												   book.autor.toLowerCase().includes(search) || 
+												   book.isbn.toLowerCase().includes(search);
+										})
+										.map((book) => (
 										<tr key={book.idLibro} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
 											<td className="px-6 py-4">
 												<div 
@@ -384,52 +521,6 @@ export default function Libros() {
 					</div>
 				)}
 
-				{/* Edit Book Modal */}
-				{editingBook && (
-					<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" role="dialog">
-						<div className="bg-white rounded-xl shadow-lg max-w-2xl w-full mx-4 overflow-hidden">
-							<div className="flex justify-between items-center px-6 py-4 border-b border-slate-200">
-								<h3 className="text-lg font-bold text-slate-900">Editar Libro</h3>
-								<button onClick={() => setEditingBook(null)} className="text-slate-400 hover:text-slate-600 text-2xl leading-none">×</button>
-							</div>
-							<form onSubmit={(e) => {
-								e.preventDefault();
-								setBooks((prev) => prev.map(b => b.idLibro === editingBook.idLibro ? editingBook : b));
-								setEditingBook(null);
-							}} className="p-6 space-y-4">
-								<div className="grid grid-cols-2 gap-4">
-									<div>
-										<label className="block text-sm font-medium text-slate-700 mb-1">Título</label>
-										<input name="titulo" value={editingBook.titulo} onChange={(e) => setEditingBook({...editingBook, titulo: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-									</div>
-									<div>
-										<label className="block text-sm font-medium text-slate-700 mb-1">Autor</label>
-										<input name="autor" value={editingBook.autor} onChange={(e) => setEditingBook({...editingBook, autor: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-									</div>
-								</div>
-								<div className="grid grid-cols-2 gap-4">
-									<div>
-										<label className="block text-sm font-medium text-slate-700 mb-1">ISBN</label>
-										<input name="isbn" value={editingBook.isbn} onChange={(e) => setEditingBook({...editingBook, isbn: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-									</div>
-									<div>
-										<label className="block text-sm font-medium text-slate-700 mb-1">Fecha Publicación</label>
-										<input type="date" name="fecha_publicacion" value={editingBook.fecha_publicacion} onChange={(e) => setEditingBook({...editingBook, fecha_publicacion: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-									</div>
-								</div>
-								<div>
-									<label className="block text-sm font-medium text-slate-700 mb-1">Editorial</label>
-									<input name="editorial" value={editingBook.editorial} onChange={(e) => setEditingBook({...editingBook, editorial: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-								</div>
-								<div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
-									<button type="button" onClick={() => setEditingBook(null)} className="px-4 py-2 text-slate-700 border border-slate-300 rounded-lg hover:bg-slate-50 text-sm font-medium">Cancelar</button>
-									<button type="submit" className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium">Guardar Cambios</button>
-								</div>
-							</form>
-						</div>
-					</div>
-				)}
-
 				{/* Modal de Ejemplares */}
 				{showEjemplares && selectedBook && (
 					<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" role="dialog">
@@ -445,12 +536,20 @@ export default function Libros() {
 							<div className="p-6 overflow-auto flex-1">
 								<div className="flex justify-between items-center mb-4">
 									<h4 className="font-semibold text-slate-700">Ejemplares ({selectedBook.ejemplares.length})</h4>
-									<button 
-										onClick={() => desactivarLibroCompleto(selectedBook)}
-										className="px-3 py-1.5 bg-rose-600 text-white rounded-lg hover:bg-rose-700 text-sm font-medium"
-									>
-										Desactivar Todos los Ejemplares
-									</button>
+									<div className="flex gap-2">
+										<button 
+											onClick={() => openAddEjemplarModal(selectedBook)}
+											className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium"
+										>
+											+ Agregar Ejemplar
+										</button>
+										<button 
+											onClick={() => desactivarLibroCompleto(selectedBook)}
+											className="px-3 py-1.5 bg-rose-600 text-white rounded-lg hover:bg-rose-700 text-sm font-medium"
+										>
+											Desactivar Todos
+										</button>
+									</div>
 								</div>
 
 								{selectedBook.ejemplares.length === 0 ? (
@@ -460,12 +559,26 @@ export default function Libros() {
 								) : (
 									<div className="grid gap-3">
 										{selectedBook.ejemplares.map((ej) => (
-											<div key={ej.codigoEjemplar} className="border border-slate-200 rounded-lg p-4 flex justify-between items-center hover:bg-slate-50">
-												<div className="flex-1">
-													<div className="font-medium text-slate-900">Código: {ej.codigoEjemplar}</div>
-													<div className="text-sm text-slate-500 mt-1">ID: #{ej.idEjemplar}</div>
+											<div key={ej.codigoEjemplar} className="border border-slate-200 rounded-lg p-4 hover:bg-slate-50">
+												<div className="flex justify-between items-start mb-3">
+													<div className="flex-1">
+														<div className="font-medium text-slate-900">Código: {ej.codigoEjemplar}</div>
+														<div className="text-sm text-slate-500 mt-1">ID: #{ej.idEjemplar}</div>
+														
+														{ej.prestadoA && (
+															<div className="mt-3 p-3 bg-amber-50 border-l-4 border-amber-400 rounded">
+																<div className="flex items-center gap-2 mb-1">
+																	<span className="text-lg">{ej.prestadoA.tipoUsuario === 'Docente' ? '👨‍🏫' : '🎓'}</span>
+																	<div className="font-semibold text-amber-900">{ej.prestadoA.lector}</div>
+																</div>
+																<div className="text-sm text-amber-700 mt-1">
+																	Debe devolverse el: <span className="font-medium">{new Date(ej.prestadoA.fechaDevolucion).toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
+																</div>
+															</div>
+														)}
+													</div>
 												</div>
-												<div className="flex items-center gap-3">
+												<div className="flex items-center justify-end gap-3">
 													<span className={`px-3 py-1 text-xs font-semibold rounded-full ${
 														ej.estado === 'disponible' ? 'bg-emerald-100 text-emerald-800' :
 														ej.estado === 'prestado' ? 'bg-amber-100 text-amber-800' :
@@ -483,8 +596,13 @@ export default function Libros() {
 															Desactivar
 														</button>
 													)}
-													{ej.estado === 'prestado' && (
-														<span className="text-slate-400 text-sm">En préstamo</span>
+													{ej.estado === 'baja' && (
+														<button 
+															onClick={() => activarEjemplar(ej)}
+															className="text-emerald-600 hover:text-emerald-700 font-medium text-sm"
+														>
+															Activar
+														</button>
 													)}
 												</div>
 											</div>
@@ -509,6 +627,61 @@ export default function Libros() {
 									Cerrar
 								</button>
 							</div>
+						</div>
+					</div>
+				)}
+
+				{/* Modal Agregar Ejemplar */}
+				{showAddEjemplar && selectedBook && (
+					<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" role="dialog">
+						<div className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 overflow-hidden">
+							<div className="flex justify-between items-center px-6 py-4 border-b border-slate-200">
+								<h3 className="text-lg font-bold text-slate-900">Agregar Ejemplar</h3>
+								<button onClick={() => setShowAddEjemplar(false)} className="text-slate-400 hover:text-slate-600 text-2xl leading-none">×</button>
+							</div>
+							
+							<form onSubmit={handleCreateEjemplar} className="p-6 space-y-4">
+								<div>
+									<p className="text-sm text-slate-600 mb-3">
+										<strong>Libro:</strong> {selectedBook.titulo}
+									</p>
+								</div>
+
+								<div>
+									<label className="block text-sm font-medium text-slate-700 mb-1">Código del Ejemplar *</label>
+									<input 
+										name="codigoEjemplar" 
+										value={ejemplarForm.codigoEjemplar} 
+										onChange={(e) => setEjemplarForm({...ejemplarForm, codigoEjemplar: e.target.value})}
+										className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+										placeholder="Código único del ejemplar"
+									/>
+									<p className="text-xs text-slate-500 mt-1">Código generado automáticamente. Puedes modificarlo si lo deseas.</p>
+								</div>
+
+								<div>
+									<label className="block text-sm font-medium text-slate-700 mb-1">Estado</label>
+									<select 
+										name="estado"
+										value={ejemplarForm.estado}
+										onChange={(e) => setEjemplarForm({...ejemplarForm, estado: e.target.value})}
+										className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+									>
+										<option value="disponible">Disponible</option>
+										<option value="prestado">Prestado</option>
+										<option value="baja">Baja</option>
+									</select>
+								</div>
+
+								<div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
+									<button type="button" onClick={() => setShowAddEjemplar(false)} className="px-4 py-2 text-slate-700 border border-slate-300 rounded-lg hover:bg-slate-50 text-sm font-medium">
+										Cancelar
+									</button>
+									<button type="submit" className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium">
+										Crear Ejemplar
+									</button>
+								</div>
+							</form>
 						</div>
 					</div>
 				)}
