@@ -1,1 +1,1 @@
-web: gunicorn --bind=0.0.0.0 --timeout 600 biblioteca_ERM.wsgi
+#web: gunicorn --bind=0.0.0.0 --timeout 600 biblioteca_ERM.wsgi
