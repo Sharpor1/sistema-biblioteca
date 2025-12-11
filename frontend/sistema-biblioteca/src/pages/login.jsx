@@ -24,7 +24,7 @@ const Login = () => {
 
     try {
       await loginUser(formData.rut, formData.password);
-      navigate('/prestamos'); 
+      navigate('/dashboard'); 
 
     } catch (err) {
       console.error("Login fallido:", err);
@@ -32,19 +32,6 @@ const Login = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  // Dev shortcut: entrar sin backend (solo para desarrollo local)
-  const handleDevBypass = () => {
-    // marcar como autenticado en localStorage para que el front pueda navegar
-    // set both keys used across the frontend to avoid redirects
-    localStorage.setItem('accessToken', 'dev-token');
-    localStorage.setItem('refreshToken', 'dev-refresh');
-    // axios interceptor expects 'token' key
-    localStorage.setItem('token', 'dev-token');
-    localStorage.setItem('refresh_token', 'dev-refresh');
-    // navegar directamente a la página de Libros
-    navigate('/libros');
   };
 
   return (
@@ -154,18 +141,8 @@ const Login = () => {
             </button>
           </form>
 
-          {/* Dev bypass button - visible only for local testing */}
-          <div className="mt-4 flex flex-col items-center gap-2">
-            <button
-              type="button"
-              onClick={handleDevBypass}
-              className="w-full text-sm py-2 rounded-lg border border-dashed border-slate-200 text-slate-600 hover:bg-slate-50"
-            >
-              Entrar sin backend (demo)
-            </button>
-            <div className="mt-2 text-center w-full">
-              <a href="#" className="text-sm font-medium text-indigo-600 hover:text-indigo-500">¿Olvidaste tu contraseña?</a>
-            </div>
+          <div className="mt-4 text-center">
+            <a href="#" className="text-sm font-medium text-indigo-600 hover:text-indigo-500">¿Olvidaste tu contraseña?</a>
           </div>
         </div>
       </div>

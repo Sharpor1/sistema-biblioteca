@@ -101,9 +101,24 @@ const LoansManager = () => {
         {/* Tarjetas de Resumen (Stats) */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           {[
-            { label: 'Préstamos Activos', val: '24', color: 'text-indigo-600', bg: 'bg-indigo-50' },
-            { label: 'Atrasados', val: '3', color: 'text-rose-600', bg: 'bg-rose-50' },
-            { label: 'Devueltos Hoy', val: '12', color: 'text-emerald-600', bg: 'bg-emerald-50' },
+            { 
+              label: 'Préstamos Activos', 
+              val: loans.filter(l => l.estado === 'activo').length.toString(), 
+              color: 'text-indigo-600', 
+              bg: 'bg-indigo-50' 
+            },
+            { 
+              label: 'Atrasados', 
+              val: loans.filter(l => l.estado === 'atrasado').length.toString(), 
+              color: 'text-rose-600', 
+              bg: 'bg-rose-50' 
+            },
+            { 
+              label: 'Finalizados', 
+              val: loans.filter(l => l.estado === 'finalizado').length.toString(), 
+              color: 'text-emerald-600', 
+              bg: 'bg-emerald-50' 
+            },
           ].map((stat, idx) => (
             <div key={idx} className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between">
               <div>
