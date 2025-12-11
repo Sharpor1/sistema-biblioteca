@@ -8,6 +8,8 @@ export default function Libros() {
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState('');
 	const [searchTerm, setSearchTerm] = useState('');
+	const [currentPage, setCurrentPage] = useState(1);
+	const itemsPerPage = 7;
 	const [isModalOpen, setIsModalOpen] = useState(false);
 	const [selectedBook, setSelectedBook] = useState(null);
 	const [showEjemplares, setShowEjemplares] = useState(false);
@@ -415,16 +417,24 @@ export default function Libros() {
 							<tbody>
 								{loading ? (
 									<tr><td className="px-6 py-4 text-sm text-slate-500" colSpan={7}>Cargando...</td></tr>
-								) : (
-									books
-										.filter(book => {
-											if (!searchTerm) return true;
-											const search = searchTerm.toLowerCase();
-											return book.titulo.toLowerCase().includes(search) || 
-												   book.autor.toLowerCase().includes(search) || 
-												   book.isbn.toLowerCase().includes(search);
-										})
-										.map((book) => (
+							) : (() => {
+								const filteredBooks = books.filter(book => {
+									if (!searchTerm) return true;
+									const search = searchTerm.toLowerCase();
+									return book.titulo.toLowerCase().includes(search) || 
+										   book.autor.toLowerCase().includes(search) || 
+										   book.isbn.toLowerCase().includes(search);
+								});
+
+								const startIndex = (currentPage - 1) * itemsPerPage;
+								const endIndex = startIndex + itemsPerPage;
+								const currentBooks = filteredBooks.slice(startIndex, endIndex);
+
+								if (currentBooks.length === 0) {
+									return <tr><td className="px-6 py-4 text-sm text-slate-500 text-center" colSpan={7}>No se encontraron libros</td></tr>;
+								}
+
+								return currentBooks.map((book) => (
 										<tr key={book.idLibro} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
 											<td className="px-6 py-4">
 												<div 
@@ -465,13 +475,57 @@ export default function Libros() {
 													</button>
 
 												</div>
-											</td>
-										</tr>
-									))
-								)}
-							</tbody>
-						</table>
+										</td>
+									</tr>
+								));
+							})()}
+						</tbody>
+				</table>
+			</div>
+
+			{/* Paginación */}
+			{(() => {
+				const filteredBooks = books.filter(book => {
+					if (!searchTerm) return true;
+					const search = searchTerm.toLowerCase();
+					return book.titulo.toLowerCase().includes(search) || 
+						   book.autor.toLowerCase().includes(search) || 
+						   book.isbn.toLowerCase().includes(search);
+				});
+				const totalPages = Math.ceil(filteredBooks.length / itemsPerPage);
+
+				if (totalPages <= 1) return null;
+
+				const startIndex = (currentPage - 1) * itemsPerPage;
+				const endIndex = startIndex + itemsPerPage;
+
+				return (
+					<div className="flex items-center justify-between px-6 py-4 border-t border-slate-100">
+						<div className="text-sm text-slate-600">
+							Mostrando {startIndex + 1}-{Math.min(endIndex, filteredBooks.length)} de {filteredBooks.length} libros
+						</div>
+						<div className="flex gap-2">
+							<button
+								onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+								disabled={currentPage === 1}
+								className="px-4 py-2 border border-slate-200 rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors"
+							>
+								← Anterior
+							</button>
+							<span className="px-4 py-2 text-sm text-slate-600 flex items-center">
+								Página {currentPage} de {totalPages}
+							</span>
+							<button
+								onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+								disabled={currentPage === totalPages}
+								className="px-4 py-2 border border-slate-200 rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors"
+							>
+								Siguiente →
+							</button>
+						</div>
 					</div>
+				);
+			})()}
 				</div>
 
 
