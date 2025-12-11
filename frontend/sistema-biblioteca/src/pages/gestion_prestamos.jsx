@@ -182,7 +182,12 @@ const LoansManager = () => {
                         </button>
                     </td>
                   </tr>
-                ))}
+                ))
+                )}
+                {error && (
+                  <tr>
+                    <td className="px-6 py-4 text-sm text-rose-600" colSpan={6}>{error}</td>
+                  </tr>
                 )}
               </tbody>
             </table>

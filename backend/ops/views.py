@@ -20,13 +20,21 @@ class PrestamoViewSet(viewsets.ModelViewSet):
         return PrestamoWriteSerializer
 
     def perform_create(self, serializer):
-        ejemplar_fisico = serializer.validated_data['ejemplar']
-        if ejemplar_fisico.estado != 'DISPONIBLE':
+        ejemplar_fisico = serializer.validated_data['codigoEjemplar']
+        estadoLector = serializer.validated_data['lector']
+        print(f"Estado del lector: {estadoLector.estado}")
+        if estadoLector.estado == 'bloqueado':
+            raise ValidationError({'detail': 'El lector se encuentra BLOQUEADO y no puede realizar préstamos.'})
+        print(f"Ejemplar detectado: {ejemplar_fisico}")
+        print(f"Estado actual del ejemplar en BD: '{ejemplar_fisico.estado}'")
+        if ejemplar_fisico.estado != 'disponible':
+            print("entrando en error")
             raise ValidationError({'detail': f'No hay stock disponible del libro "{ejemplar_fisico.libro}".'})
         with transaction.atomic():
-            ejemplar_fisico.estado = 'PRESTADO'
+            ejemplar_fisico.estado = 'Prestado'
             ejemplar_fisico.save()
-            serializer.save()
+            print("estado ejemplar:", ejemplar_fisico.estado)
+            serializer.save(libro=ejemplar_fisico.libro)
 
 
     @action(detail=True, methods=['post'], url_path='devolver-prestamo')
@@ -34,7 +42,7 @@ class PrestamoViewSet(viewsets.ModelViewSet):
         with transaction.atomic():
             prestamo = self.get_object()
 
-            if prestamo.estado == 'DEVUELTO':
+            if prestamo.estado == 'finalizado':
                 return Response({'detail': 'El préstamo ya ha sido devuelto.'}, status=status.HTTP_400_BAD_REQUEST)
             
             devolucion = timezone.now()
@@ -55,10 +63,16 @@ class PrestamoViewSet(viewsets.ModelViewSet):
                     monto=totalMulta,
                     estadoPago='pendiente',
                 )
+                estadoLector = prestamo.lector
+                estadoLector.estado = 'bloqueado'
+                estadoLector.save()
                 mensaje = f"Libro devuelto con RETRASO. Se generó una multa de ${totalMulta}."
                 datosMulta = {'id': multa.idMulta, 'monto': multa.monto}
             
-            prestamo.estado = 'DEVUELTO'
+            prestamo.estado = 'finalizado'
+            inventarion_ejemplar = prestamo.codigoEjemplar
+            inventarion_ejemplar.estado = 'disponible'
+            inventarion_ejemplar.save()
             prestamo.fecha_devolucion_real = devolucion 
             prestamo.save()
             
@@ -67,7 +81,6 @@ class PrestamoViewSet(viewsets.ModelViewSet):
                 'status': 'ok',
                 'mensaje': mensaje,
                 'multa': datosMulta,
-                'stock_actualizado': libro_asociado.stock
             })
 
 class MultaViewSet(viewsets.ModelViewSet):
@@ -91,6 +104,9 @@ class MultaViewSet(viewsets.ModelViewSet):
             )
 
         multa.estadoPago = 'pagado'
+        estadoLector = multa.idPrestamo.lector
+        estadoLector.estado = 'activo'
+        estadoLector.save()
         multa.save()
 
         return Response({

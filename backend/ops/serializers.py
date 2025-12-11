@@ -16,7 +16,7 @@ class PrestamoWriteSerializer(serializers.ModelSerializer):
     class Meta:
         model = Prestamo
         fields = '__all__'
-        read_only_fields = ['fecha_devolucion_estimada']
+        read_only_fields = ['fecha_devolucion_estimada','libro', 'renovacionesUtilizadas']
 
     def validate(self, data):
         fecha_prestamo = data.get('fecha_prestamo')

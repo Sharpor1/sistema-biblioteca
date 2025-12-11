@@ -12,6 +12,7 @@ class Prestamo(models.Model):
     ('atrasado', 'Atrasado')]
 
     idPrestamo = models.AutoField(primary_key=True)
+    libro = models.ForeignKey('inventario.Libro', on_delete=models.CASCADE)
     codigoEjemplar = models.ForeignKey(Ejemplar, on_delete=models.CASCADE)
     fecha_prestamo = models.DateTimeField(default=timezone.now)
     fecha_devolucion = models.DateTimeField(null=True, blank=True)
@@ -21,6 +22,10 @@ class Prestamo(models.Model):
     renovacionesUtilizadas = models.IntegerField(default=0)
 
     def save(self, *args, **kwargs):
+
+        if not self.libro and self.codigoEjemplar:
+            self.libro = self.codigoEjemplar.libro
+
         if not self.fecha_devolucion:
             duracion = self.lector.rol.diasPrestamoMax
             self.fecha_devolucion = self.fecha_prestamo + timedelta(days=duracion)

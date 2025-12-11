@@ -30,7 +30,7 @@ class Lector(models.Model):
     nombreCompleto = models.CharField(max_length=100)
     contacto = models.EmailField(unique=True)
     rol = models.ForeignKey('TipoUsuario', on_delete=models.CASCADE)
-    estado = models.CharField(max_length=20, default='activo')
+    estado = models.CharField(max_length=20, choices=ESTADOS, default='activo')
     
     def __str__(self):
         return self.nombreCompleto
