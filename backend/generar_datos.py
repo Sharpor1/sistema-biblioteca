@@ -53,8 +53,8 @@ def generar_datos():
                 defaults={
                     'diasPrestamoMin': 7,
                     'diasPrestamoMax': 14,
-                    'cupoLibros': 3,
-                    'renovacionesMax': 1
+                    'cupoPrestamoMax': 4,
+                    'maxRenovaciones': 1
                 }
             )
             
@@ -63,8 +63,8 @@ def generar_datos():
                 defaults={
                     'diasPrestamoMin': 14,
                     'diasPrestamoMax': 30,
-                    'cupoLibros': 5,
-                    'renovacionesMax': 2
+                    'cupoPrestamoMax': 5,
+                    'maxRenovaciones': 2
                 }
             )
             

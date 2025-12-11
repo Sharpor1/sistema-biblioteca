@@ -14,3 +14,8 @@ export const devolverPrestamo = async (idPrestamo) => {
   const { data } = await api.post(`/ops/prestamos/${idPrestamo}/devolver-prestamo/`);
   return data;
 };
+
+export const renovarPrestamo = async (idPrestamo) => {
+  const { data } = await api.post(`/ops/prestamos/${idPrestamo}/renovar-prestamo/`);
+  return data;
+};

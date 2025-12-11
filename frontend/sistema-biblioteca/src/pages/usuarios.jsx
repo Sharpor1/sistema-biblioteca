@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import Sidebar from '../components/Sidebar';
 import { fetchUsuarios, createUsuario } from '../services/usuariosService';
+import { fetchPrestamos } from '../services/prestamosService';
+import { fetchMultas } from '../services/multasService';
 
 export default function Usuarios() {
   const [modalOpen, setModalOpen] = useState(false);
@@ -16,6 +18,9 @@ export default function Usuarios() {
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 7;
+  const [userPrestamos, setUserPrestamos] = useState([]);
+  const [userMultas, setUserMultas] = useState([]);
+  const [loadingDetails, setLoadingDetails] = useState(false);
 
   const [form, setForm] = useState({ rut: '', nombreCompleto: '', contacto: '', rol: 1, estado: 'activo' });
   const [errors, setErrors] = useState({});
@@ -140,9 +145,34 @@ export default function Usuarios() {
                       <div 
                         key={u.id} 
                         className="border rounded p-3 flex justify-between items-center cursor-pointer hover:bg-slate-50 transition-colors"
-                        onClick={() => {
+                        onClick={async () => {
                           setSelectedUser(u);
                           setShowUserDetails(true);
+                          setLoadingDetails(true);
+                          try {
+                            const [prestamos, multas] = await Promise.all([
+                              fetchPrestamos(),
+                              fetchMultas()
+                            ]);
+                            // Filtrar solo préstamos activos o atrasados del usuario
+                            const prestamosUsuario = prestamos.filter(p => {
+                              const esDelUsuario = p.lector?.id === u.id || p.lector === u.id;
+                              const estadoValido = p.estado === 'activo' || p.estado === 'atrasado';
+                              return esDelUsuario && estadoValido;
+                            });
+                            
+                            // Filtrar multas del usuario
+                            const multasUsuario = multas.filter(m => {
+                              return m.lector?.id === u.id || m.lector === u.id || m.idPrestamo?.lector?.id === u.id;
+                            });
+                            
+                            setUserPrestamos(prestamosUsuario);
+                            setUserMultas(multasUsuario);
+                          } catch (err) {
+                            console.error('Error cargando detalles:', err);
+                          } finally {
+                            setLoadingDetails(false);
+                          }
                         }}
                       >
                         <div>
@@ -237,8 +267,8 @@ export default function Usuarios() {
 
       {/* Modal de Detalles de Usuario */}
       {showUserDetails && selectedUser && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 overflow-hidden">
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 overflow-y-auto py-8">
+          <div className="bg-white rounded-xl shadow-lg max-w-3xl w-full mx-4 my-auto">
             <div className="flex justify-between items-center px-6 py-4 border-b border-slate-200">
               <div className="flex items-center gap-2">
                 <h3 className="text-lg font-bold text-slate-900">Detalles del Usuario</h3>
@@ -253,7 +283,7 @@ export default function Usuarios() {
               <button onClick={() => setShowUserDetails(false)} className="text-slate-400 hover:text-slate-600 text-2xl leading-none">×</button>
             </div>
             
-            <div className="p-6 space-y-4">
+            <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
               <div className="bg-slate-50 p-4 rounded-lg">
                 <p className="text-xs text-slate-600 mb-1">Nombre Completo</p>
                 <p className="text-base font-semibold text-slate-900">{selectedUser.nombreCompleto}</p>
@@ -307,6 +337,93 @@ export default function Usuarios() {
                   </div>
                 </div>
               )}
+
+              {/* Préstamos Activos */}
+              <div className="border-t pt-4">
+                <h4 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                  <span>📚</span> Préstamos Activos
+                </h4>
+                {loadingDetails ? (
+                  <div className="text-sm text-slate-500 text-center py-4">Cargando...</div>
+                ) : userPrestamos.length === 0 ? (
+                  <div className="text-sm text-slate-500 text-center py-4 bg-slate-50 rounded-lg">No tiene préstamos activos</div>
+                ) : (
+                  <div className="space-y-2">
+                    {userPrestamos.map((prestamo) => {
+                      const fechaDevolucion = new Date(prestamo.fecha_devolucion);
+                      const hoy = new Date();
+                      const diasRetraso = Math.floor((hoy - fechaDevolucion) / (1000 * 60 * 60 * 24));
+                      const estaRetrasado = prestamo.estado === 'atrasado' || (prestamo.estado === 'activo' && diasRetraso > 0);
+                      
+                      return (
+                        <div key={prestamo.idPrestamo} className="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1">
+                              <p className="font-medium text-slate-900 text-sm">{prestamo.libro?.titulo || 'Libro no disponible'}</p>
+                              <div className="mt-1 space-y-1">
+                                <p className="text-xs text-slate-600">
+                                  <span className="font-medium">Fecha préstamo:</span> {new Date(prestamo.fecha_prestamo).toLocaleDateString('es-CL')}
+                                </p>
+                                <p className="text-xs text-slate-600">
+                                  <span className="font-medium">Fecha entrega:</span> {fechaDevolucion.toLocaleDateString('es-CL')}
+                                </p>
+                              </div>
+                            </div>
+                            <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                              estaRetrasado ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'
+                            }`}>
+                              {estaRetrasado ? `Retrasado (${diasRetraso}d)` : 'Al día'}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Deudas */}
+              <div className="border-t pt-4">
+                <h4 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                  <span>💰</span> Deudas
+                </h4>
+                {loadingDetails ? (
+                  <div className="text-sm text-slate-500 text-center py-4">Cargando...</div>
+                ) : userMultas.length === 0 ? (
+                  <div className="text-sm text-emerald-600 text-center py-4 bg-emerald-50 rounded-lg font-medium">✓ Sin deudas pendientes</div>
+                ) : (
+                  <div className="space-y-2">
+                    {userMultas.map((multa) => (
+                      <div key={multa.idMulta} className="bg-rose-50 p-3 rounded-lg border border-rose-200">
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <p className="font-medium text-rose-900 text-sm">{multa.prestamo?.libro?.titulo || 'Libro no disponible'}</p>
+                            <div className="mt-1 space-y-1">
+                              <p className="text-xs text-rose-700">
+                                <span className="font-medium">Días de retraso:</span> {multa.diasRetraso || 'N/A'} días
+                              </p>
+                              <p className="text-xs text-rose-700">
+                                <span className="font-medium">Estado:</span> {multa.estado === 'pagada' ? 'Pagada' : 'Pendiente'}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-lg font-bold text-rose-700">${multa.monto?.toLocaleString('es-CL') || '0'}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    <div className="bg-slate-100 p-3 rounded-lg border-2 border-slate-300">
+                      <div className="flex justify-between items-center">
+                        <p className="font-semibold text-slate-900">Total Deudas:</p>
+                        <p className="text-xl font-bold text-rose-700">
+                          ${userMultas.reduce((sum, m) => sum + (m.monto || 0), 0).toLocaleString('es-CL')}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="px-6 py-4 border-t border-slate-200 bg-slate-50">

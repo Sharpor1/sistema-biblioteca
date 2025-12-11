@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
-import { fetchPrestamos, devolverPrestamo } from '../services/prestamosService';
+import { fetchPrestamos, devolverPrestamo, renovarPrestamo } from '../services/prestamosService';
 import { fetchEjemplares } from '../services/librosService';
 
 const LoansManager = () => {
@@ -125,6 +125,52 @@ const LoansManager = () => {
       alert('Error al devolver: ' + (err.response?.data?.detail || err.message));
     } finally {
       closeReturn();
+    }
+  }
+
+  async function handleRenovar(loan) {
+    const maxRenovaciones = loan.lector?.rol?.maxRenovaciones || 0;
+    const renovacionesUsadas = loan.renovacionesUtilizadas || 0;
+    
+    if (renovacionesUsadas >= maxRenovaciones) {
+      alert(`Este préstamo ya alcanzó el límite de ${maxRenovaciones} renovaciones.`);
+      return;
+    }
+    
+    if (!confirm(`¿Desea renovar el préstamo de "${loan.libro?.titulo || 'este libro'}"?`)) return;
+    
+    try {
+      const response = await renovarPrestamo(loan.idPrestamo);
+      
+      // Recargar la lista completa con códigos de ejemplares
+      const [prestamosData, ejemplaresData] = await Promise.all([
+        fetchPrestamos(),
+        fetchEjemplares()
+      ]);
+      
+      const prestamosEnriquecidos = prestamosData.map(prestamo => {
+        let codigoEjemplarReal = prestamo.codigoEjemplar;
+        
+        if (typeof prestamo.codigoEjemplar === 'number') {
+          const ejemplar = ejemplaresData.find(e => e.id === prestamo.codigoEjemplar);
+          if (ejemplar) {
+            codigoEjemplarReal = ejemplar.codigoEjemplar;
+          }
+        }
+        
+        return {
+          ...prestamo,
+          codigoEjemplarTexto: codigoEjemplarReal
+        };
+      });
+      
+      setLoans(prestamosEnriquecidos);
+      setEjemplares(ejemplaresData);
+      alert(response.mensaje || 'Préstamo renovado exitosamente.');
+    } catch (err) {
+      console.error('Error al renovar préstamo:', err);
+      const errorMsg = err.response?.data?.detail || err.response?.data?.mensaje || 'No se pudo renovar el préstamo';
+      alert(`Error: ${errorMsg}`);
     }
   }
 
@@ -314,7 +360,24 @@ const LoansManager = () => {
                     </td>
                     <td className="px-6 py-4 text-right">
                         {loan.estado !== 'finalizado' ? (
-                            <button onClick={() => openReturn(loan)} className="text-emerald-600 hover:text-emerald-800 text-sm font-medium hover:underline">Devolver</button>
+                            <div className="flex gap-2 justify-end">
+                                {(() => {
+                                    const maxRenovaciones = loan.lector?.rol?.maxRenovaciones || 0;
+                                    const renovacionesUsadas = loan.renovacionesUtilizadas || 0;
+                                    const puedeRenovar = renovacionesUsadas < maxRenovaciones;
+                                    
+                                    return puedeRenovar && (
+                                        <button 
+                                            onClick={() => handleRenovar(loan)} 
+                                            className="text-indigo-600 hover:text-indigo-800 text-sm font-medium hover:underline"
+                                            title={`Renovaciones: ${renovacionesUsadas}/${maxRenovaciones}`}
+                                        >
+                                            Renovar
+                                        </button>
+                                    );
+                                })()}
+                                <button onClick={() => openReturn(loan)} className="text-emerald-600 hover:text-emerald-800 text-sm font-medium hover:underline">Devolver</button>
+                            </div>
                         ) : (
                             <span className="text-slate-400 text-sm">Finalizado</span>
                         )}

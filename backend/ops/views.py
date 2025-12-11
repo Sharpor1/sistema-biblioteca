@@ -32,10 +32,19 @@ class PrestamoViewSet(viewsets.ModelViewSet):
         print(f"Ejemplar detectado: {ejemplar_fisico}")
         print(f"Estado actual del ejemplar en BD: '{ejemplar_fisico.estado}'")
         
-        prestamos_activos = Prestamo.objects.filter(lector=estadoLector, estado='activo').count()
+        # Contar préstamos activos y atrasados (no finalizados)
+        prestamos_activos = Prestamo.objects.filter(
+            lector=estadoLector, 
+            estado__in=['activo', 'atrasado']
+        ).count()
         limite_maximo = estadoLector.rol.cupoPrestamoMax
 
-        if Prestamo.objects.filter(lector=estadoLector, estado='activo', codigoEjemplar__libro=ejemplar_fisico.libro).exists():
+        # Verificar si ya tiene un ejemplar del mismo libro (activo o atrasado)
+        if Prestamo.objects.filter(
+            lector=estadoLector, 
+            estado__in=['activo', 'atrasado'], 
+            codigoEjemplar__libro=ejemplar_fisico.libro
+        ).exists():
             raise ValidationError({'detail': f'El lector ya tiene un ejemplar prestado del libro "{ejemplar_fisico.libro}". Debe devolverlo antes de solicitar otro igual.'})
         
         if prestamos_activos >= limite_maximo:
@@ -111,7 +120,7 @@ class PrestamoViewSet(viewsets.ModelViewSet):
                  status=status.HTTP_400_BAD_REQUEST
              )
 
-            if prestamo.fecha_devolucion < timezone.now():
+            if prestamo.fecha_devolucion.date() < timezone.now().date():
                 return Response({'detail': 'No se puede renovar un préstamo vencido. Por favor, devuelva el libro primero.'}, status=status.HTTP_400_BAD_REQUEST)
 
             if prestamo.estado == 'finalizado':
@@ -167,15 +176,19 @@ class reportesViewSet(viewsets.ViewSet):
     @action(detail=False, methods=['get'], url_path='reporte-prestamos-activos')
     def reporte_prestamos_activos(self, request):
         hoy = timezone.now().date()
-        prestamos_activos = Prestamo.objects.filter(estado='activo').select_related('lector', 'libro', 'codigoEjemplar')
+        prestamos_activos = Prestamo.objects.filter(estado='activo').select_related('lector', 'lector__rol', 'codigoEjemplar', 'codigoEjemplar__libro')
         reporte_prestamos_activos = []
         for p in prestamos_activos:
             es_retrasado = p.fecha_devolucion and p.fecha_devolucion < hoy
             estado = "Retrasado" if es_retrasado else "Al día"
+            
+            libro_titulo = p.codigoEjemplar.libro.titulo if p.codigoEjemplar and p.codigoEjemplar.libro else "N/A"
+            libro_codigo = p.codigoEjemplar.libro.isbn if p.codigoEjemplar and p.codigoEjemplar.libro else "N/A"
 
             reporte_prestamos_activos.append({
                 "id_prestamo": p.idPrestamo,
-                "libro": p.libro.titulo,
+                "codigo_libro": libro_codigo,
+                "libro": libro_titulo,
                 "usuario": f"{p.lector.nombre} {p.lector.apellido}",
                 "tipo_usuario": p.lector.rol.nombre if p.lector.rol else "Sin rol",
                 "fecha_prestamo": p.fecha_prestamo.date(),
@@ -186,13 +199,14 @@ class reportesViewSet(viewsets.ViewSet):
 
     @action(detail=False, methods=['get'], url_path='reporte-multas-pendientes')
     def reporte_multas_pendientes(self, request):
-        multas_pendientes = Multa.objects.filter(estadoPago='pendiente').select_related('idPrestamo__lector', 'idPrestamo__libro')
+        multas_pendientes = Multa.objects.filter(estadoPago='pendiente').select_related('idPrestamo__lector', 'idPrestamo__lector__rol', 'idPrestamo__codigoEjemplar', 'idPrestamo__codigoEjemplar__libro')
         reporte_multas_pendientes = []
         
         for m in multas_pendientes:
+            libro_titulo = m.idPrestamo.codigoEjemplar.libro.titulo if m.idPrestamo.codigoEjemplar and m.idPrestamo.codigoEjemplar.libro else "N/A"
             reporte_multas_pendientes.append({
                 "id_multa": m.idMulta,
-                "libro": m.idPrestamo.libro.titulo,
+                "libro": libro_titulo,
                 "usuario": f"{m.idPrestamo.lector.nombre} {m.idPrestamo.lector.apellido}",
                 "tipo_usuario": m.idPrestamo.lector.rol.nombre if m.idPrestamo.lector.rol else "Sin rol",
                 "dias_retraso": m.diasRetraso,
@@ -202,12 +216,13 @@ class reportesViewSet(viewsets.ViewSet):
     
     @action(detail=False, methods=['get'], url_path='reporte-renovaciones')
     def reporte_renovaciones(self, request):
-        prestamos_renovados = Prestamo.objects.filter(renovacionesUtilizadas__gt=0).select_related('lector', 'libro')
+        prestamos_renovados = Prestamo.objects.filter(renovacionesUtilizadas__gt=0).select_related('lector', 'lector__rol', 'codigoEjemplar', 'codigoEjemplar__libro')
         reporte_renovaciones = []
         
         for p in prestamos_renovados:
+            libro_titulo = p.codigoEjemplar.libro.titulo if p.codigoEjemplar and p.codigoEjemplar.libro else "N/A"
             reporte_renovaciones.append({
-                "libro": p.libro.titulo,
+                "libro": libro_titulo,
                 "usuario": f"{p.lector.nombre} {p.lector.apellido}",
                 "tipo_usuario": p.lector.rol.nombre if p.lector.rol else "Sin rol",
                 "fecha_prestamo": p.fecha_prestamo.date(),
