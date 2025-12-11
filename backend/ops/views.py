@@ -20,12 +20,12 @@ class PrestamoViewSet(viewsets.ModelViewSet):
         return PrestamoWriteSerializer
 
     def perform_create(self, serializer):
-        libro = serializer.validated_data['idLibro']
-        if libro.stock < 1:
-            raise ValidationError({'detail': f'No hay stock disponible del libro "{libro.titulo}".'})
+        ejemplar_fisico = serializer.validated_data['ejemplar']
+        if ejemplar_fisico.estado != 'DISPONIBLE':
+            raise ValidationError({'detail': f'No hay stock disponible del libro "{ejemplar_fisico.libro}".'})
         with transaction.atomic():
-            libro.stock -= 1
-            libro.save()
+            ejemplar_fisico.estado = 'PRESTADO'
+            ejemplar_fisico.save()
             serializer.save()
 
 
@@ -36,6 +36,7 @@ class PrestamoViewSet(viewsets.ModelViewSet):
 
             if prestamo.estado == 'DEVUELTO':
                 return Response({'detail': 'El préstamo ya ha sido devuelto.'}, status=status.HTTP_400_BAD_REQUEST)
+            
             devolucion = timezone.now()
             devolucion_date = devolucion.date()
             fecha_devolucion_date = prestamo.fecha_devolucion.date()
@@ -60,10 +61,7 @@ class PrestamoViewSet(viewsets.ModelViewSet):
             prestamo.estado = 'DEVUELTO'
             prestamo.fecha_devolucion_real = devolucion 
             prestamo.save()
-            # logica para inventario
-            libro_asociado = prestamo.libro
-            libro_asociado.stock += 1
-            libro_asociado.save()
+            
 
             return Response({
                 'status': 'ok',
