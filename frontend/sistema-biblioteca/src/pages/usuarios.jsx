@@ -13,6 +13,9 @@ export default function Usuarios() {
   const [error, setError] = useState('');
   const [selectedUser, setSelectedUser] = useState(null);
   const [showUserDetails, setShowUserDetails] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 7;
 
   const [form, setForm] = useState({ rut: '', nombreCompleto: '', contacto: '', rol: 1, estado: 'activo' });
   const [errors, setErrors] = useState({});
@@ -95,45 +98,102 @@ export default function Usuarios() {
           {error && <div className="mb-3 text-rose-600 text-sm">{error}</div>}
           <div className="mb-4">
             <label className="block text-sm text-slate-600">Buscar Usuario</label>
-            <input placeholder="Ingresa el RUT del usuario" className="w-full rounded-lg border px-3 py-2 bg-slate-50" />
+            <input 
+              placeholder="Busca por nombre, RUT o email" 
+              className="w-full rounded-lg border px-3 py-2 bg-slate-50"
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
+            />
           </div>
-
-          <div className="bg-indigo-50 border border-indigo-100 p-3 rounded text-sm text-slate-600">RUTs de prueba: 12345678-9 (Alumno), 23456789-0 (Docente)</div>
         </div>
 
-        <div className="mt-6 bg-white rounded-xl p-6">
+        <div className="mt-3 bg-white rounded-xl p-6">
           <h3 className="font-semibold mb-4">Usuarios Recientes</h3>
           {loading ? (
             <div className="text-sm text-slate-500">Cargando...</div>
-          ) : (
-            <div className="space-y-3">
-              {users.map((u) => (
-                <div 
-                  key={u.id} 
-                  className="border rounded p-3 flex justify-between items-center cursor-pointer hover:bg-slate-50 transition-colors"
-                  onClick={() => {
-                    setSelectedUser(u);
-                    setShowUserDetails(true);
-                  }}
-                >
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium">{u.nombreCompleto}</span>
-                      {u.tipoUsuario && (
-                        u.tipoUsuario.toLowerCase().includes('docente') || u.tipoUsuario.toLowerCase().includes('profesor') ? (
-                          <span className="text-base" title="Docente">👨‍🏫</span>
-                        ) : (
-                          <span className="text-base" title="Estudiante">🎓</span>
-                        )
-                      )}
-                    </div>
-                    <div className="text-sm text-slate-500">{u.rut} • {u.tipoUsuario || tiposUsuario.find(t => t.idTipo === u.rol)?.nombre}</div>
-                  </div>
-                  <div className="text-sm text-slate-500">{u.contacto}</div>
+          ) : (() => {
+            // Filtrar usuarios
+            const filteredUsers = users.filter(u => {
+              if (!searchTerm) return true;
+              const search = searchTerm.toLowerCase();
+              return u.nombreCompleto?.toLowerCase().includes(search) ||
+                     u.rut?.toLowerCase().includes(search) ||
+                     u.contacto?.toLowerCase().includes(search);
+            });
+
+            // Calcular paginación
+            const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const endIndex = startIndex + itemsPerPage;
+            const currentUsers = filteredUsers.slice(startIndex, endIndex);
+
+            return (
+              <>
+                <div className="space-y-3">
+                  {currentUsers.length === 0 ? (
+                    <div className="text-sm text-slate-500 text-center py-8">No se encontraron usuarios</div>
+                  ) : (
+                    currentUsers.map((u) => (
+                      <div 
+                        key={u.id} 
+                        className="border rounded p-3 flex justify-between items-center cursor-pointer hover:bg-slate-50 transition-colors"
+                        onClick={() => {
+                          setSelectedUser(u);
+                          setShowUserDetails(true);
+                        }}
+                      >
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">{u.nombreCompleto}</span>
+                            {u.tipoUsuario && (
+                              u.tipoUsuario.toLowerCase().includes('docente') || u.tipoUsuario.toLowerCase().includes('profesor') ? (
+                                <span className="text-base" title="Docente">👨‍🏫</span>
+                              ) : (
+                                <span className="text-base" title="Estudiante">🎓</span>
+                              )
+                            )}
+                          </div>
+                          <div className="text-sm text-slate-500">{u.rut} • {u.tipoUsuario || tiposUsuario.find(t => t.idTipo === u.rol)?.nombre}</div>
+                        </div>
+                        <div className="text-sm text-slate-500">{u.contacto}</div>
+                      </div>
+                    ))
+                  )}
                 </div>
-              ))}
-            </div>
-          )}
+
+                {/* Paginación */}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-between mt-6 pt-4 border-t">
+                    <div className="text-sm text-slate-600">
+                      Mostrando {startIndex + 1}-{Math.min(endIndex, filteredUsers.length)} de {filteredUsers.length} usuarios
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                        disabled={currentPage === 1}
+                        className="px-3 py-1 border rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50"
+                      >
+                        ← Anterior
+                      </button>
+                      <span className="px-3 py-1 text-sm text-slate-600">
+                        Página {currentPage} de {totalPages}
+                      </span>
+                      <button
+                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                        disabled={currentPage === totalPages}
+                        className="px-3 py-1 border rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50"
+                      >
+                        Siguiente →
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </div>
       </main>
 
