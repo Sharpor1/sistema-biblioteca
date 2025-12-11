@@ -20,7 +20,7 @@ jobs:
 
       # CORRECCIÓN 1: Entrar a la carpeta 'frontend' para instalar y construir
       - name: npm install and build
-        working-directory: ./frontend  
+        working-directory: ./frontend/sistema-biblioteca  
         run: |
           npm install
           npm run build
@@ -59,4 +59,5 @@ jobs:
           app-name: 'frontrinconcitomagico'
           slot-name: 'Production'
           package: .
+
 
