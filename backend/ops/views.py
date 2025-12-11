@@ -109,31 +109,31 @@ class PrestamoViewSet(viewsets.ModelViewSet):
                 'mensaje': mensaje,
                 'multa': datosMulta,
             })
-        @action(detail=True, methods=['post'], url_path='renovar-prestamo')
-        def renovar_prestamo(self, request, pk=None):
-            prestamo = self.get_object()
-            usuarioLector = prestamo.lector
-
-            if usuarioLector.estado == 'bloqueado':
+        
+    @action(detail=True, methods=['post'], url_path='renovar-prestamo')
+    def renovar_prestamo(self, request, pk=None):
+        prestamo = self.get_object()
+        usuarioLector = prestamo.lector
+        if usuarioLector.estado == 'bloqueado':
              return Response(
                  {'detail': 'Su cuenta está bloqueada. No puede renovar libros.'}, 
                  status=status.HTTP_400_BAD_REQUEST
              )
 
-            if prestamo.fecha_devolucion.date() < timezone.now().date():
+        if prestamo.fecha_devolucion < timezone.now():
                 return Response({'detail': 'No se puede renovar un préstamo vencido. Por favor, devuelva el libro primero.'}, status=status.HTTP_400_BAD_REQUEST)
 
-            if prestamo.estado == 'finalizado':
+        if prestamo.estado == 'finalizado':
                 return Response({'detail': 'El préstamo ya ha sido devuelto y no puede ser renovado.'}, status=status.HTTP_400_BAD_REQUEST)
             
-            if prestamo.renovacionesUtilizadas >= usuarioLector.rol.maxRenovaciones:
+        if prestamo.renovacionesUtilizadas >= usuarioLector.rol.maxRenovaciones:
                 return Response({'detail': 'El préstamo ya ha sido renovado hasta su limite'}, status=status.HTTP_400_BAD_REQUEST)
             
-            nuevo_vencimiento = prestamo.fecha_devolucion + timezone.timedelta(days=usuarioLector.rol.diasPrestamoMax)
-            prestamo.fecha_devolucion = nuevo_vencimiento
-            prestamo.renovacionesUtilizadas += 1
-            prestamo.save()
-            return Response({
+        nuevo_vencimiento = prestamo.fecha_devolucion + timezone.timedelta(days=usuarioLector.rol.diasPrestamoMax)
+        prestamo.fecha_devolucion = nuevo_vencimiento
+        prestamo.renovacionesUtilizadas += 1
+        prestamo.save()
+        return Response({
                 'status': 'ok',
                 'mensaje': f'Préstamo renovado exitosamente. Nueva fecha de vencimiento: {nuevo_vencimiento.date()}.'
             })
