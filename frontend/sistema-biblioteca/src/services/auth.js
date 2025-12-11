@@ -2,7 +2,7 @@ import api from '../api/axios';
 
 export const loginUser = async (rut, password) => {
     try {
-        const response = await api.post('/token/',{
+        const response = await api.post('/auth/login/',{
             rut : rut,
             password :password
         });
@@ -10,6 +10,8 @@ export const loginUser = async (rut, password) => {
         if (response.data.access) {
             localStorage.setItem('accessToken', response.data.access);
             localStorage.setItem('refreshToken', response.data.refresh);
+            // Guardar también en 'token' para compatibilidad con axios interceptor
+            localStorage.setItem('token', response.data.access);
         }
 
         return response.data;
@@ -20,5 +22,7 @@ export const loginUser = async (rut, password) => {
 
 export const logoutUser = () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
     localStorage.removeItem('refresh_token');
 };

@@ -15,7 +15,7 @@ from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 
 class UsersViewSet(viewsets.ModelViewSet):
     serializer_class = LectorSerializer
-    permission_classes = [IsAdminUser]
+    permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
         queryset = Lector.objects.all()
