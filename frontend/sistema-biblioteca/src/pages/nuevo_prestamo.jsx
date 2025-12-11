@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import Sidebar from '../components/Sidebar';
 import { fetchUsuarios } from '../services/usuariosService';
-import { fetchEjemplares } from '../services/librosService';
+import { fetchEjemplares, fetchLibros } from '../services/librosService';
 import { createPrestamo } from '../services/prestamosService';
+import { fetchMultas } from '../services/multasService';
 
 export default function NuevoPrestamo() {
   const [rut, setRut] = useState('');
@@ -12,6 +13,8 @@ export default function NuevoPrestamo() {
   const [dias, setDias] = useState(0);
   const [usuarios, setUsuarios] = useState([]);
   const [ejemplares, setEjemplares] = useState([]);
+  const [libros, setLibros] = useState([]);
+  const [multas, setMultas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -19,9 +22,19 @@ export default function NuevoPrestamo() {
     const load = async () => {
       try {
         setLoading(true);
-        const [u, e] = await Promise.all([fetchUsuarios(), fetchEjemplares()]);
-        setUsuarios(u);
-        setEjemplares(e);
+        const [u, e, l, m] = await Promise.all([fetchUsuarios(), fetchEjemplares(), fetchLibros(), fetchMultas()]);
+        
+        // Filtrar usuarios sin multas pendientes
+        const rutosConMultas = new Set(m.filter(multa => multa.estadoPago?.toLowerCase() === 'pendiente').map(multa => multa.idPrestamo?.lector?.rut || multa.lector?.rut));
+        const usuariosSinMultas = u.filter(usuario => !rutosConMultas.has(usuario.rut));
+        
+        // Filtrar ejemplares disponibles
+        const ejemplaresDisponibles = e.filter(ej => ej.estado?.toLowerCase() === 'disponible');
+        
+        setUsuarios(usuariosSinMultas);
+        setEjemplares(ejemplaresDisponibles);
+        setLibros(l);
+        setMultas(m);
       } catch (err) {
         setError('No se pudieron cargar usuarios o ejemplares');
       } finally {
@@ -104,8 +117,8 @@ export default function NuevoPrestamo() {
 
               <div className="mt-4 bg-indigo-50 border border-indigo-100 p-3 rounded">
                 <strong className="text-sm">Datos cargados:</strong>
-                <div className="text-sm text-slate-600 mt-2">Usuarios: {usuarios.length}</div>
-                <div className="text-sm text-slate-600 mt-1">Ejemplares disponibles: {ejemplares.filter(e => e.estado?.toLowerCase() === 'disponible').length}</div>
+                <div className="text-sm text-slate-600 mt-2">Usuarios sin multas: {usuarios.length}</div>
+                <div className="text-sm text-slate-600 mt-1">Ejemplares disponibles: {ejemplares.length}</div>
               </div>
             </div>
           </div>
@@ -132,16 +145,39 @@ export default function NuevoPrestamo() {
           </div>
         </div>
 
-        <div className="bg-white rounded-xl p-6 mt-6">
-          <h3 className="font-semibold mb-4">Ejemplares Disponibles Recientes</h3>
-          <div className="space-y-3">
-            <div className="border rounded p-3">
-              <div className="font-medium">Cien Años de Soledad</div>
-              <div className="text-sm text-slate-500">Código: LIB001 — Estado: Disponible</div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+          <div className="bg-white rounded-xl p-6">
+            <h3 className="font-semibold mb-4">Usuarios Sin Multas ({usuarios.length})</h3>
+            <div className="space-y-2 max-h-96 overflow-y-auto">
+              {usuarios.length === 0 ? (
+                <div className="text-sm text-slate-500">No hay usuarios disponibles sin multas</div>
+              ) : (
+                usuarios.slice(0, 10).map((u) => (
+                  <div key={u.rut} className="border rounded p-3">
+                    <div className="font-medium text-sm">{u.nombreCompleto}</div>
+                    <div className="text-xs text-slate-500">RUT: {u.rut} — Tipo: {u.rol?.nombre || 'N/A'}</div>
+                  </div>
+                ))
+              )}
             </div>
-            <div className="border rounded p-3">
-              <div className="font-medium">1984</div>
-              <div className="text-sm text-slate-500">Código: LIB003 — Estado: Disponible</div>
+          </div>
+
+          <div className="bg-white rounded-xl p-6">
+            <h3 className="font-semibold mb-4">Libros Disponibles ({ejemplares.length} ejemplares)</h3>
+            <div className="space-y-2 max-h-96 overflow-y-auto">
+              {ejemplares.length === 0 ? (
+                <div className="text-sm text-slate-500">No hay ejemplares disponibles</div>
+              ) : (
+                ejemplares.slice(0, 10).map((ej) => {
+                  const libro = libros.find(l => l.idLibro === ej.libro);
+                  return (
+                    <div key={ej.codigoEjemplar} className="border rounded p-3">
+                      <div className="font-medium text-sm">{libro?.titulo || 'Título no disponible'}</div>
+                      <div className="text-xs text-slate-500">Código: {ej.codigoEjemplar} — Autor: {libro?.autor || 'N/A'}</div>
+                    </div>
+                  );
+                })
+              )}
             </div>
           </div>
         </div>

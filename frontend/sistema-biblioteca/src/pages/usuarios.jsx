@@ -57,11 +57,20 @@ export default function Usuarios() {
     const v = validate();
     if (Object.keys(v).length) { setErrors(v); return; }
     try {
+      console.log('Enviando usuario:', form);
       const created = await createUsuario(form);
       setUsers((u) => [created, ...u]);
       setModalOpen(false);
+      setForm({ rut: '', nombreCompleto: '', contacto: '', rol: 1, estado: 'activo' });
+      setError('');
     } catch (err) {
-      setError('No se pudo crear el usuario');
+      console.error('Error creando usuario:', err);
+      if (err.response?.data?.rol) {
+        setError('Error: Los tipos de usuario no existen en la base de datos. Por favor, créalos primero en Django Admin (/admin).');
+      } else {
+        const errorMsg = err.response?.data ? JSON.stringify(err.response.data) : 'No se pudo crear el usuario';
+        setError(`Error: ${errorMsg}`);
+      }
     }
   }
 

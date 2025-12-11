@@ -24,3 +24,13 @@ export const updateLibro = async (idLibro, payload) => {
   const { data } = await api.put(`/inventario/libros/${idLibro}/`, payload);
   return data;
 };
+
+export const updateEjemplar = async (idEjemplar, payload) => {
+  const { data } = await api.put(`/inventario/ejemplares/${idEjemplar}/`, payload);
+  return data;
+};
+
+export const darBajaEjemplar = async (idEjemplar) => {
+  const { data } = await api.post(`/inventario/ejemplares/${idEjemplar}/dar-baja/`);
+  return data;
+};
