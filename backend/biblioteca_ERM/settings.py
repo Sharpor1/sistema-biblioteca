@@ -70,6 +70,7 @@ REST_FRAMEWORK = {
         'rest_framework.permissions.IsAuthenticated',
     )
 }
+AUTH_USER_MODEL = 'usuarios.Encargado'
 
 SIMPLE_JWT = {
     'ALGORITHM' : 'HS256',
@@ -81,24 +82,47 @@ SIMPLE_JWT = {
     'AUTH_HEADER_TYPES' : ('Bearer',),
 }
 
+# Lista de dominios que pueden enviar formularios (POST) a tu Django
+CSRF_TRUSTED_ORIGINS = [
+    "https://rinconcitomagico-d2ejfmc8aebdbqag.canadacentral-01.azurewebsites.net/",          # Tu URL del backend
+    "https://gentle-glacier-04565a81e.3.azurestaticapps.net/",   # <--- LA URL DE TU FRONTEND (Static Web App)
+    "http://localhost:5173",                         # Para cuando pruebes en local
+]
+
+# Configuración de CORS (Permitir peticiones del front al back)
+CORS_ALLOWED_ORIGINS = [
+    "https://gentle-glacier-04565a81e.3.azurestaticapps.net/",   # <--- LA URL DE TU FRONTEND
+    "http://localhost:5173",
+]
+
 # Seguridad de cookies y SSL (produccion)
 
 # --- Para desplegar en produccion
+if not DEBUG:
+    CSRF_COOKIE_SECURE = True
+    SESSION_COOKIE_SECURE = True
+    SECURE_SSL_REDIRECT = True
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
-#CSRF_COOKIE_SECURE = True
-#SESSION_COOKIE_SECURE = True
-#SECURE_SSL_REDIRECT = True
-#SECURE_HSTS_SECONDS = 31536000
+else:
+    # --- CONFIGURACIÓN PARA LOCAL (DEV) ---
+    CSRF_COOKIE_SECURE = False
+    SESSION_COOKIE_SECURE = False
+    SECURE_SSL_REDIRECT = False
+    SECURE_HSTS_SECONDS = 0
 
 # --- Solo para desarrollo local (SIN HTTPS) ---
 
-CSRF_COOKIE_SECURE = False      # No usar secure si no hay HTTPS
-SESSION_COOKIE_SECURE = False   # Igual, evitar secure en local
+#CSRF_COOKIE_SECURE = False      # No usar secure si no hay HTTPS
+#SESSION_COOKIE_SECURE = False   # Igual, evitar secure en local
 
-SECURE_SSL_REDIRECT = False     # No redirigir a HTTPS
-SECURE_HSTS_SECONDS = 0         # Desactivar HSTS
-SECURE_HSTS_INCLUDE_SUBDOMAINS = False
-SECURE_HSTS_PRELOAD = False
+#SECURE_SSL_REDIRECT = False     # No redirigir a HTTPS
+#SECURE_HSTS_SECONDS = 0         # Desactivar HSTS
+#SECURE_HSTS_INCLUDE_SUBDOMAINS = False
+#SECURE_HSTS_PRELOAD = False
 
 ROOT_URLCONF = 'biblioteca_ERM.urls'
 
@@ -159,6 +183,20 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'biblioteca_db',
+        'USER': 'postgresql',
+        'PASSWORD': 'Rinconcito-magico',
+        'HOST': 'db-biblioteca-prod.postgres.database.azure.com',
+        'PORT': '5432',
+       'OPTIONS': {
+            'sslmode': 'require',
+        },
+    }
+}
 
 SWAGGER_SETTINGS = {
     'SECURITY_DEFINITIONS': {
