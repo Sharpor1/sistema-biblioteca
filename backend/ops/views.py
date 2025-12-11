@@ -23,13 +23,26 @@ class PrestamoViewSet(viewsets.ModelViewSet):
         ejemplar_fisico = serializer.validated_data['codigoEjemplar']
         estadoLector = serializer.validated_data['lector']
         print(f"Estado del lector: {estadoLector.estado}")
+        
         if estadoLector.estado == 'bloqueado':
             raise ValidationError({'detail': 'El lector se encuentra BLOQUEADO y no puede realizar préstamos.'})
+        
         print(f"Ejemplar detectado: {ejemplar_fisico}")
         print(f"Estado actual del ejemplar en BD: '{ejemplar_fisico.estado}'")
+        
+        prestamos_activos = Prestamo.objects.filter(lector=estadoLector, estado='activo').count()
+        limite_maximo = estadoLector.rol.cupoPrestamoMax
+
+        if Prestamo.objects.filter(lector=estadoLector, estado='activo', libro=ejemplar_fisico.libro).exists():
+            raise ValidationError({'detail': f'El lector ya tiene un ejemplar prestado del libro "{ejemplar_fisico.libro}". Debe devolverlo antes de solicitar otro igual.'})
+        
+        if prestamos_activos >= limite_maximo:
+            raise ValidationError({'detail': f'El lector ya tiene {prestamos_activos} libros prestados. El límite es {limite_maximo}.'})
+        
         if ejemplar_fisico.estado != 'disponible':
             print("entrando en error")
             raise ValidationError({'detail': f'No hay stock disponible del libro "{ejemplar_fisico.libro}".'})
+        
         with transaction.atomic():
             ejemplar_fisico.estado = 'Prestado'
             ejemplar_fisico.save()
