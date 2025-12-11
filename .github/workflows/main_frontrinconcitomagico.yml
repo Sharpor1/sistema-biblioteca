@@ -24,6 +24,7 @@ jobs:
           node-version: '22.x'
 
       - name: npm install, build, and test
+        working-directory: ./frontend/sistema-biblioteca
         run: |
           npm install
           npm run build --if-present
@@ -33,7 +34,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: node-app
-          path: .
+          path: frontend/sistema-biblioteca/dist
 
   deploy:
     runs-on: ubuntu-latest
@@ -52,4 +53,5 @@ jobs:
           app-name: 'frontrinconcitomagico'
           slot-name: 'Production'
           package: .
+
           publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_D94675E1E73F4B17AFEBEA667CB0C51C }}
