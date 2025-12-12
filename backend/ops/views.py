@@ -78,6 +78,12 @@ class PrestamoViewSet(viewsets.ModelViewSet):
         with transaction.atomic():
             ejemplar_fisico.estado = 'prestado'
             ejemplar_fisico.save()
+            multa = Multa.objects.create(
+                idPrestamo=prestamo,
+                diasRetraso=0,
+                monto=0,
+                estadoPago='pendiente',
+            )
             print("estado ejemplar:", ejemplar_fisico.estado)
             serializer.save()
 
@@ -102,13 +108,12 @@ class PrestamoViewSet(viewsets.ModelViewSet):
                 valorDia = 1000
                 totalMulta = diferencia * valorDia
 
-                multa = Multa.objects.create(
-                    idPrestamo=prestamo,
-                    diasRetraso=diferencia,
-                    monto=totalMulta,
-                    estadoPago='pagada',  # Auto-pagada para testing
-                )
-                mensaje = f"Libro devuelto con RETRASO. Se generó una multa de ${totalMulta}."
+                multa =  self.get_object()
+                multa.diasRetraso = diferencia
+                multa.monto = totalMulta
+                multa.estadoPago = 'pagada'
+                multa.save()
+                mensaje = f"Libro devuelto"
                 datosMulta = {'id': multa.idMulta, 'monto': multa.monto}
             
             prestamo.estado = 'finalizado'
@@ -124,7 +129,142 @@ class PrestamoViewSet(viewsets.ModelViewSet):
             tiene_prestamos_atrasados = Prestamo.objects.filter(
                 lector=lector,
                 estado='atrasado'
+            ).exists()def perform_create(self, serializer):
+        ejemplar_fisico = serializer.validated_data['codigoEjemplar']
+        estadoLector = serializer.validated_data['lector']
+        print(f"Estado del lector: {estadoLector.estado}")
+        
+        if estadoLector.estado == 'bloqueado':
+            raise ValidationError({'detail': 'El lector se encuentra BLOQUEADO y no puede realizar préstamos.'})
+        
+        # Verificar si tiene multas pendientes
+        multas_pendientes = Multa.objects.filter(
+            idPrestamo__lector=estadoLector,
+            estadoPago='pendiente'
+        ).exists()
+        
+        if multas_pendientes:
+            raise ValidationError({'detail': 'El lector tiene multas pendientes. Debe pagarlas antes de realizar un nuevo préstamo.'})
+        
+        # Verificar si tiene préstamos atrasados
+        prestamos_atrasados = Prestamo.objects.filter(
+            lector=estadoLector,
+            estado='atrasado'
+        ).exists()
+        
+        if prestamos_atrasados:
+            raise ValidationError({'detail': 'El lector tiene préstamos atrasados. Debe devolverlos antes de realizar un nuevo préstamo.'})
+        
+        print(f"Ejemplar detectado: {ejemplar_fisico}")
+        print(f"Estado actual del ejemplar en BD: '{ejemplar_fisico.estado}'")
+        
+        # Contar préstamos activos y atrasados (no finalizados)
+        prestamos_activos = Prestamo.objects.filter(
+            lector=estadoLector, 
+            estado__in=['activo', 'atrasado']
+        ).count()
+        limite_maximo = estadoLector.rol.cupoPrestamoMax
+
+        # Verificar si ya tiene un ejemplar del mismo libro (activo o atrasado)
+        if Prestamo.objects.filter(
+            lector=estadoLector, 
+            estado__in=['activo', 'atrasado'], 
+            codigoEjemplar__libro=ejemplar_fisico.libro
+        ).exists():
+            raise ValidationError({'detail': f'El lector ya tiene un ejemplar prestado del libro "{ejemplar_fisico.libro}". Debe devolverlo antes de solicitar otro igual.'})
+        
+        if prestamos_activos >= limite_maximo:
+            raise ValidationError({'detail': f'El lector ya tiene {prestamos_activos} libros prestados. El límite es {limite_maximo}.'})
+        
+        # if ejemplar_fisico.habilitado == False:
+        #     raise ValidationError({'detail': f'El ejemplar "{ejemplar_fisico.codigoEjemplar}" no está habilitado para préstamo.'})
+
+        if ejemplar_fisico.estado != 'disponible':
+            print("entrando en error")
+            raise ValidationError({'detail': f'No hay stock disponible del libro "{ejemplar_fisico.libro}".'})
+        
+        with transaction.atomic():
+            ejemplar_fisico.estado = 'prestado'
+            ejemplar_fisico.save()
+            prestamo_creado = serializer.save()
+            multa = Multa.objects.create(
+                idPrestamo=prestamo_creado,
+                diasRetraso=0,
+                monto=0,
+                estadoPago='pendiente',
+            )
+            print("estado ejemplar:", ejemplar_fisico.estado)
+
+
+    @action(detail=True, methods=['post'], url_path='devolver-prestamo')
+    def devolverPrestamo(self, request, pk=None):
+        with transaction.atomic():
+            prestamo = self.get_object()
+
+            if prestamo.estado == 'finalizado':
+                return Response({'detail': 'El préstamo ya ha sido devuelto.'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            devolucion = timezone.now()
+            devolucion_date = devolucion.date()
+            fecha_devolucion_date = prestamo.fecha_devolucion.date()
+            diferencia = (devolucion_date - fecha_devolucion_date).days
+
+            try:
+                multa = Multa.objects.get(idPrestamo=prestamo)
+            except Multa.DoesNotExist:
+                multa = Multa.objects.create(idPrestamo=prestamo, diasRetraso=0, monto=0, estadoPago='pendiente')
+
+            datosMulta = None
+            mensaje = 'Préstamo devuelto a tiempo.'
+
+            if diferencia > 0:
+                valorDia = 1000
+                totalMulta = diferencia * valorDia
+
+                multa.diasRetraso = diferencia
+                multa.monto = totalMulta
+                multa.estadoPago = 'pagado'
+                multa.save()
+            
+                mensaje = f"Libro devuelto"
+                datosMulta = {'id': multa.idMulta, 'monto': multa.monto, 'estado': 'pagado'}
+            else:
+                multa.diasRetraso = 0
+                multa.monto = 0
+                multa.estadoPago = 'pagado'
+                multa.save()
+                mensaje = f"Libro devuelto"
+                datosMulta = {'id': multa.idMulta, 'monto': multa.monto, 'estado': 'pagado'}
+
+                prestamo.lector.estado = 'activo'
+                prestamo.lector.save()
+            
+            prestamo.estado = 'finalizado'
+            inventarion_ejemplar = prestamo.codigoEjemplar
+            inventarion_ejemplar.estado = 'disponible'
+            inventarion_ejemplar.save()
+            prestamo.fecha_devolucion_real = devolucion 
+            prestamo.save()
+            
+            # Verificar si el usuario aún tiene préstamos atrasados
+            # Si no tiene más préstamos atrasados, desbloquear el usuario
+            lector = prestamo.lector
+            tiene_prestamos_atrasados = Prestamo.objects.filter(
+                lector=lector,
+                estado='atrasado'
             ).exists()
+            
+            if not tiene_prestamos_atrasados and lector.estado == 'bloqueado':
+                lector.estado = 'activo'
+                lector.save()
+            
+
+            return Response({
+                'status': 'ok',
+                'mensaje': mensaje,
+                'multa': datosMulta,
+            })
+        
             
             if not tiene_prestamos_atrasados and lector.estado == 'bloqueado':
                 lector.estado = 'activo'
