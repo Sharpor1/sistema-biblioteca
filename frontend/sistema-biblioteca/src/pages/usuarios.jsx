@@ -123,7 +123,7 @@ export default function Usuarios() {
           backgroundRepeat: 'no-repeat'
         }}
       />
-      <div className="absolute inset-0 bg-white/90"/>
+      <div className="absolute inset-0 bg-white/95"/>
       
       <div className="relative z-10 flex w-full">
         <Sidebar />

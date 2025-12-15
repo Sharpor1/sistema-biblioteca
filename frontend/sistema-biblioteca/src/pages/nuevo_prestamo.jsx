@@ -142,7 +142,7 @@ export default function NuevoPrestamo() {
           backgroundRepeat: 'no-repeat'
         }}
       />
-      <div className="absolute inset-0 bg-white/90"/>
+      <div className="absolute inset-0 bg-white/95"/>
       
       <div className="relative z-10 flex w-full">
         <Sidebar />
@@ -154,7 +154,7 @@ export default function NuevoPrestamo() {
         </header>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 bg-white rounded-xl p-6">
+          <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-slate-200 p-6">
             <h3 className="font-semibold mb-4">Datos del Préstamo</h3>
             <div className="space-y-4">
               <div>
@@ -194,7 +194,7 @@ export default function NuevoPrestamo() {
             </div>
           </div>
 
-          <div className="bg-white rounded-xl p-6 flex flex-col justify-between">
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex flex-col justify-between">
             <div>
               <h4 className="font-semibold mb-2">Confirmar Préstamo</h4>
               <p className="text-sm text-slate-500 mb-6">Completa las validaciones para continuar</p>
@@ -214,7 +214,7 @@ export default function NuevoPrestamo() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-          <div className="bg-white rounded-xl p-6">
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
             <h3 className="font-semibold mb-4">Usuarios ({usuarios.filter(u => {
               const search = searchUsuarios.toLowerCase();
               return u.nombreCompleto.toLowerCase().includes(search) || u.rut.toLowerCase().includes(search);
@@ -304,7 +304,7 @@ export default function NuevoPrestamo() {
             </div>
           </div>
 
-          <div className="bg-white rounded-xl p-6">
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
             <h3 className="font-semibold mb-4">Libros Disponibles ({
               (() => {
                 const librosConEjemplares = {};
