@@ -45,7 +45,7 @@ export default function Sidebar() {
   ];
 
   return (
-    <aside className="w-64 bg-indigo-700 shadow-[0_20px_50px_rgba(0,0,0,0.4)] hidden md:flex flex-col p-6">
+    <aside className="w-56 bg-indigo-700 shadow-[0_20px_50px_rgba(0,0,0,0.4)] hidden md:flex flex-col p-6">
       <div className="flex items-center gap-3 mb-8">
         <div className="h-10 w-10 bg-indigo-400 rounded-lg flex items-center justify-center text-white">
           <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">

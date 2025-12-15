@@ -384,19 +384,27 @@ export default function Usuarios() {
                   <div className="grid grid-cols-2 gap-3 text-sm">
                     <div>
                       <p className="text-xs text-slate-600">Días Mínimo</p>
-                      <p className="font-semibold text-slate-900">{selectedUser.rol.diasPrestamoMin || 'N/A'} días</p>
+                      <p className="font-semibold text-slate-900">
+                        {selectedUser.rol.diasPrestamoMin === 99 || selectedUser.rol.diasPrestamoMin === 999 ? 'ilimitado' : `${selectedUser.rol.diasPrestamoMin || 'N/A'} días`}
+                      </p>
                     </div>
                     <div>
                       <p className="text-xs text-slate-600">Días Máximo</p>
-                      <p className="font-semibold text-slate-900">{selectedUser.rol.diasPrestamoMax || 'N/A'} días</p>
+                      <p className="font-semibold text-slate-900">
+                        {selectedUser.rol.diasPrestamoMax === 99 || selectedUser.rol.diasPrestamoMax === 999 ? 'ilimitado' : `${selectedUser.rol.diasPrestamoMax || 'N/A'} días`}
+                      </p>
                     </div>
                     <div>
                       <p className="text-xs text-slate-600">Libros Simultáneos</p>
-                      <p className="font-semibold text-slate-900">{selectedUser.rol.cupoPrestamoMax || 'N/A'} libros</p>
+                      <p className="font-semibold text-slate-900">
+                        {selectedUser.rol.cupoPrestamoMax === 99 || selectedUser.rol.cupoPrestamoMax === 999 ? 'ilimitado' : `${selectedUser.rol.cupoPrestamoMax || 'N/A'} libros`}
+                      </p>
                     </div>
                     <div>
                       <p className="text-xs text-slate-600">Renovaciones</p>
-                      <p className="font-semibold text-slate-900">{selectedUser.rol.maxRenovaciones || 'N/A'} veces</p>
+                      <p className="font-semibold text-slate-900">
+                        {selectedUser.rol.maxRenovaciones === 99 || selectedUser.rol.maxRenovaciones === 999 ? 'ilimitadas' : `${selectedUser.rol.maxRenovaciones || 'N/A'} veces`}
+                      </p>
                     </div>
                   </div>
                 </div>

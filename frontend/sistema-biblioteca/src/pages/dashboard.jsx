@@ -122,7 +122,7 @@ export default function Dashboard() {
 
         // Multas pagadas hoy
         const multasPagadasHoy = multas.filter(m => {
-          if (m.estadoPago !== 'pagada' && m.estadoPago !== 'PAGADA') return false;
+          if (m.estadoPago !== 'pagada' && m.estadoPago !== 'PAGADA' && m.estadoPago !== 'pagado') return false;
           if (!m.fechaMulta) return false;
           const fecha = new Date(m.fechaMulta);
           return fecha >= inicioDelDia && fecha < finDelDia;
@@ -247,7 +247,7 @@ export default function Dashboard() {
     });
 
     const multasPagadas = datosCompletos.multas.filter(m => {
-      if (m.estadoPago !== 'pagada' && m.estadoPago !== 'PAGADA') return false;
+      if (m.estadoPago !== 'pagada' && m.estadoPago !== 'PAGADA' && m.estadoPago !== 'pagado') return false;
       if (!m.fechaMulta) return false;
       const fecha = new Date(m.fechaMulta);
       return fecha >= inicioDelDia && fecha < finDelDia;
@@ -289,11 +289,11 @@ export default function Dashboard() {
       <div className="relative z-10 flex w-full">
         <Sidebar />
       
-      <main className="flex-1 p-8 overflow-y-auto">
+      <main className="flex-1 p-6 overflow-y-auto">
         {/* Header */}
-        <header className="mb-8 flex justify-between items-start">
+        <header className="mb-6 flex justify-between items-start">
           <div>
-            <h1 className="text-3xl font-bold text-slate-800">Dashboard</h1>
+            <h1 className="text-2xl font-bold text-slate-800">Dashboard</h1>
             <p className="text-slate-500 text-sm mt-1">Vista general del sistema de biblioteca</p>
           </div>
           <button
@@ -363,17 +363,17 @@ export default function Dashboard() {
             <div className="text-slate-500">Cargando datos...</div>
           </div>
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-4">
             
             {/* Sección: Actividad del Día */}
             <section>
-              <h2 className="text-lg font-bold text-slate-800 mb-3 flex items-center gap-2">
-                <svg className="h-5 w-5 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <h2 className="text-base font-bold text-slate-800 mb-2 flex items-center gap-2">
+                <svg className="h-4 w-4 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
                 Actividad de Hoy
               </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 <StatCard
                   label="Préstamos Realizados Hoy"
                   value={stats.prestamosHoy}
@@ -388,24 +388,31 @@ export default function Dashboard() {
                   icon="check"
                   link="/prestamos"
                 />
-              </div>
-            </section>
-
-            {/* Sección: Alertas de Usuarios */}
-            <section>
-              <h2 className="text-lg font-bold text-slate-800 mb-3 flex items-center gap-2">
-                <svg className="h-5 w-5 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-                Alertas de Usuarios
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <StatCard
                   label="Multas Pagadas Hoy"
                   value={stats.multasPagadasHoy}
                   color="emerald"
                   icon="check"
                   link="/historial-multas"
+                />
+              </div>
+            </section>
+
+            {/* Sección: Alertas de Usuarios */}
+            <section>
+              <h2 className="text-base font-bold text-slate-800 mb-2 flex items-center gap-2">
+                <svg className="h-4 w-4 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+                Actividad de Usuarios
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                <StatCard
+                  label="Usuarios con Préstamos Activos"
+                  value={stats.usuariosConPrestamos}
+                  color="teal"
+                  icon="users"
+                  link="/usuarios"
                 />
                 <StatCard
                   label="Usuarios con Préstamos Atrasados"
@@ -419,20 +426,13 @@ export default function Dashboard() {
 
             {/* Sección: Actividad Reciente */}
             <section>
-              <h2 className="text-lg font-bold text-slate-800 mb-3 flex items-center gap-2">
-                <svg className="h-5 w-5 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <h2 className="text-base font-bold text-slate-800 mb-2 flex items-center gap-2">
+                <svg className="h-4 w-4 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                 </svg>
-                Actividad Reciente
+                Registro de Actividad
               </h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <StatCard
-                  label="Préstamos Esta Semana"
-                  value={stats.prestamosEstaSemana}
-                  color="purple"
-                  icon="calendar"
-                  link="/prestamos"
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 <StatCard
                   label="Préstamos Este Mes"
                   value={stats.prestamosEsteMes}
@@ -441,24 +441,26 @@ export default function Dashboard() {
                   link="/prestamos"
                 />
                 <StatCard
-                  label="Usuarios con Préstamos Activos"
-                  value={stats.usuariosConPrestamos}
-                  color="teal"
-                  icon="users"
-                  link="/usuarios"
+                  label="Préstamos Esta Semana"
+                  value={stats.prestamosEstaSemana}
+                  color="purple"
+                  icon="calendar"
+                  link="/prestamos"
                 />
+
+                
               </div>
             </section>
             
             {/* Sección: Inventario de Libros */}
             <section>
-              <h2 className="text-lg font-bold text-slate-800 mb-3 flex items-center gap-2">
-                <svg className="h-5 w-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <h2 className="text-base font-bold text-slate-800 mb-2 flex items-center gap-2">
+                <svg className="h-4 w-4 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                 </svg>
                 Inventario de Libros
               </h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <StatCard
                   label="Total de Libros"
                   value={stats.totalLibros}
@@ -485,19 +487,20 @@ export default function Dashboard() {
 
             {/* Sección: Préstamos */}
             <section>
-              <h2 className="text-lg font-bold text-slate-800 mb-3 flex items-center gap-2">
-                <svg className="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <h2 className="text-base font-bold text-slate-800 mb-2 flex items-center gap-2">
+                <svg className="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
                 Estado de Préstamos
               </h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <StatCard
-                  label="Préstamos Activos"
-                  value={stats.prestamosActivos}
-                  color="blue"
-                  icon="active"
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <StatCard
+                  label="Préstamos Finalizados"
+                  value={stats.prestamosFinalizados}
+                  color="slate"
+                  icon="check"
                   link="/prestamos"
+              
                 />
                 <StatCard
                   label="Préstamos Atrasados"
@@ -507,10 +510,10 @@ export default function Dashboard() {
                   link="/prestamos"
                 />
                 <StatCard
-                  label="Préstamos Finalizados"
-                  value={stats.prestamosFinalizados}
-                  color="slate"
-                  icon="check"
+                  label="Préstamos Activos"
+                  value={stats.prestamosActivos}
+                  color="blue"
+                  icon="active"
                   link="/prestamos"
                 />
               </div>
@@ -553,15 +556,15 @@ function StatCard({ label, value, color, icon, large = false, link }) {
   return (
     <div 
       onClick={handleClick}
-      className={`bg-white p-4 rounded-xl shadow-sm border ${colors.border} hover:shadow-lg transition-all ${link ? 'cursor-pointer hover:scale-[1.02]' : ''}`}
+      className={`bg-white p-3 rounded-xl shadow-sm border ${colors.border} hover:shadow-lg transition-all ${link ? 'cursor-pointer hover:scale-[1.02]' : ''}`}
     >
       <div className="flex items-center justify-between">
         <div className="flex-1">
           <p className="text-slate-500 text-xs font-medium mb-1">{label}</p>
-          <p className={`${large ? 'text-4xl' : 'text-3xl'} font-bold text-slate-800`}>{value}</p>
+          <p className={`${large ? 'text-3xl' : 'text-2xl'} font-bold text-slate-800`}>{value}</p>
         </div>
-        <div className={`h-12 w-12 rounded-full flex items-center justify-center ${colors.bg} flex-shrink-0 ml-3`}>
-          <IconComponent icon={icon} className={`h-6 w-6 ${colors.text}`} />
+        <div className={`h-10 w-10 rounded-full flex items-center justify-center ${colors.bg} flex-shrink-0 ml-3`}>
+          <IconComponent icon={icon} className={`h-5 w-5 ${colors.text}`} />
         </div>
       </div>
     </div>
