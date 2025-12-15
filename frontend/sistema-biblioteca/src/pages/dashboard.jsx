@@ -406,7 +406,7 @@ export default function Dashboard() {
                 </svg>
                 Actividad de Usuarios
               </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <StatCard
                   label="Usuarios con Préstamos Activos"
                   value={stats.usuariosConPrestamos}
@@ -432,7 +432,7 @@ export default function Dashboard() {
                 </svg>
                 Registro de Actividad
               </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <StatCard
                   label="Préstamos Este Mes"
                   value={stats.prestamosEsteMes}
@@ -460,7 +460,7 @@ export default function Dashboard() {
                 </svg>
                 Inventario de Libros
               </h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <StatCard
                   label="Total de Libros"
                   value={stats.totalLibros}
@@ -473,13 +473,6 @@ export default function Dashboard() {
                   value={stats.ejemplaresDisponibles}
                   color="emerald"
                   icon="check"
-                  link="/libros"
-                />
-                <StatCard
-                  label="Ejemplares Prestados"
-                  value={stats.ejemplaresPrestados}
-                  color="amber"
-                  icon="clock"
                   link="/libros"
                 />
               </div>
