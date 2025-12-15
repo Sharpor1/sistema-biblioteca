@@ -3,6 +3,8 @@ from usuarios.models import Lector
 from inventario.models import Ejemplar
 from django.utils import timezone
 from datetime import timedelta
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 # Create your models here.
 
 class Prestamo(models.Model):
@@ -21,9 +23,16 @@ class Prestamo(models.Model):
     renovacionesUtilizadas = models.IntegerField(default=0)
 
     def save(self, *args, **kwargs):
+        # Calcular fecha de devolución si no existe
         if not self.fecha_devolucion:
             duracion = self.lector.rol.diasPrestamoMax
             self.fecha_devolucion = self.fecha_prestamo + timedelta(days=duracion)
+        
+        # Verificar si el préstamo está atrasado
+        if self.estado == 'activo' and self.fecha_devolucion:
+            if timezone.now().date() > self.fecha_devolucion.date():
+                self.estado = 'atrasado'
+        
         super().save(*args, **kwargs)
     
     @property
@@ -43,3 +52,14 @@ class Multa(models.Model):
     monto = models.DecimalField(max_digits=10, decimal_places=2)
     estadoPago = models.CharField(max_length=20, choices = ESTADOS, default='pendiente')
     idPrestamo = models.ForeignKey(Prestamo, on_delete=models.CASCADE)
+
+
+# Signal para bloquear usuarios cuando tienen préstamos atrasados
+@receiver(post_save, sender=Prestamo)
+def bloquear_usuario_con_atraso(sender, instance, **kwargs):
+    """Bloquea al usuario automáticamente si tiene préstamos atrasados"""
+    if instance.estado == 'atrasado':
+        lector = instance.lector
+        if lector.estado != 'bloqueado':
+            lector.estado = 'bloqueado'
+            lector.save()

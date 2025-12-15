@@ -1,11 +1,34 @@
 # Archivos Cache
 __pycache__/
 
-#Base de datos
+# Base de datos local
 db.sqlite3
+backend/db.sqlite3
+
+# Variables de entorno (contienen credenciales)
+.env
+backend/.env
 
 # Node / React
 frontend/node_modules/
 frontend/build/
 frontend/dist/
 
+# Python
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

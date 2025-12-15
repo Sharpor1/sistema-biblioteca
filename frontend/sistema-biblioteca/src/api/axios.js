@@ -1,7 +1,12 @@
 import axios from 'axios';
 
+// Cambiar entre desarrollo local y producción
+const isDevelopment = import.meta.env.DEV;
+
 const api = axios.create({
-    baseURL: 'https://rinconcitomagico-d2ejfmc8aebdbqag.canadacentral-01.azurewebsites.net/api',
+    baseURL: isDevelopment 
+        ? 'http://127.0.0.1:8000/api'  // Desarrollo local
+        : 'https://rinconcitomagico-d2ejfmc8aebdbqag.canadacentral-01.azurewebsites.net/api',  // Producción Azure
 });
 
 // INTERCEPTOR DE PETICIONES (REQUEST)

@@ -3,6 +3,7 @@ import Sidebar from '../components/Sidebar';
 import { fetchUsuarios, createUsuario } from '../services/usuariosService';
 import { fetchPrestamos } from '../services/prestamosService';
 import { fetchMultas } from '../services/multasService';
+import libraryBg from '../assets/sitio-fondo.png';
 
 export default function Usuarios() {
   const [modalOpen, setModalOpen] = useState(false);
@@ -17,7 +18,7 @@ export default function Usuarios() {
   const [showUserDetails, setShowUserDetails] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 7;
+  const itemsPerPage = 6;
   const [userPrestamos, setUserPrestamos] = useState([]);
   const [userMultas, setUserMultas] = useState([]);
   const [loadingDetails, setLoadingDetails] = useState(false);
@@ -112,8 +113,20 @@ export default function Usuarios() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex font-sans text-slate-800">
-      <Sidebar />
+    <div className="min-h-screen flex font-sans text-slate-800 relative">
+      <div 
+        className="absolute inset-0 bg-cover bg-center"
+        style={{
+          backgroundImage: `url(${libraryBg})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat'
+        }}
+      />
+      <div className="absolute inset-0 bg-white/90"/>
+      
+      <div className="relative z-10 flex w-full">
+        <Sidebar />
 
       <main className="flex-1 p-8">
         <header className="flex items-center justify-between mb-6">
@@ -126,13 +139,15 @@ export default function Usuarios() {
           </div>
         </header>
 
-        <div className="bg-white rounded-xl p-6">
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
           {error && <div className="mb-3 text-rose-600 text-sm">{error}</div>}
-          <div className="mb-4">
-            <label className="block text-sm text-slate-600">Buscar Usuario</label>
+          <div className="mb-4 relative">
+            <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
             <input 
-              placeholder="Busca por nombre, RUT o email" 
-              className="w-full rounded-lg border px-3 py-2 bg-slate-50"
+              placeholder="Buscar por nombre, RUT o email..." 
+              className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
               value={searchTerm}
               onChange={(e) => {
                 setSearchTerm(e.target.value);
@@ -142,7 +157,7 @@ export default function Usuarios() {
           </div>
         </div>
 
-        <div className="mt-3 bg-white rounded-xl p-6">
+        <div className="mt-3 bg-white rounded-xl shadow-sm border border-slate-200 p-6">
           <h3 className="font-semibold mb-4">Usuarios Recientes</h3>
           {loading ? (
             <div className="text-sm text-slate-500">Cargando...</div>
@@ -171,16 +186,15 @@ export default function Usuarios() {
                     currentUsers.map((u) => (
                       <div 
                         key={u.id} 
-                        className="border rounded p-3 flex justify-between items-center cursor-pointer hover:bg-slate-50 transition-colors"
+                        className={`border rounded p-3 flex justify-between items-center cursor-pointer hover:bg-slate-50 transition-colors ${
+                          u.estado === 'bloqueado' ? 'border-rose-300 bg-rose-50' : ''
+                        }`}
                         onClick={async () => {
                           setSelectedUser(u);
                           setShowUserDetails(true);
                           setLoadingDetails(true);
                           try {
-                            const [prestamos, multas] = await Promise.all([
-                              fetchPrestamos(),
-                              fetchMultas()
-                            ]);
+                            const prestamos = await fetchPrestamos();
                             // Filtrar solo préstamos activos o atrasados del usuario
                             const prestamosUsuario = prestamos.filter(p => {
                               const esDelUsuario = p.lector?.id === u.id || p.lector === u.id;
@@ -188,13 +202,26 @@ export default function Usuarios() {
                               return esDelUsuario && estadoValido;
                             });
                             
-                            // Filtrar multas del usuario
-                            const multasUsuario = multas.filter(m => {
-                              return m.lector?.id === u.id || m.lector === u.id || m.idPrestamo?.lector?.id === u.id;
-                            });
+                            // Calcular multas en tiempo real para préstamos atrasados
+                            const multasCalculadas = prestamosUsuario
+                              .filter(p => p.estado === 'atrasado')
+                              .map(p => {
+                                const today = new Date();
+                                const dueDate = new Date(p.fecha_devolucion);
+                                const daysLate = Math.floor((today - dueDate) / (1000 * 60 * 60 * 24));
+                                const monto = daysLate > 0 ? daysLate * 1000 : 0;
+                                return {
+                                  idPrestamo: p.idPrestamo,
+                                  diasRetraso: daysLate,
+                                  monto: monto,
+                                  fechaMulta: new Date(),
+                                  libro: p.libro
+                                };
+                              })
+                              .filter(m => m.monto > 0);
                             
                             setUserPrestamos(prestamosUsuario);
-                            setUserMultas(multasUsuario);
+                            setUserMultas(multasCalculadas);
                           } catch (err) {
                             console.error('Error cargando detalles:', err);
                           } finally {
@@ -301,7 +328,7 @@ export default function Usuarios() {
       {showUserDetails && selectedUser && (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 overflow-y-auto py-8">
           <div className="bg-white rounded-xl shadow-lg max-w-3xl w-full mx-4 my-auto">
-            <div className="flex justify-between items-center px-6 py-4 border-b border-slate-200">
+            <div className="flex justify-between items-center px-4 py-3 border-b border-slate-200">
               <div className="flex items-center gap-2">
                 <h3 className="text-lg font-bold text-slate-900">Detalles del Usuario</h3>
                 {selectedUser.tipoUsuario && (
@@ -377,9 +404,7 @@ export default function Usuarios() {
 
               {/* Préstamos Activos */}
               <div className="border-t pt-4">
-                <h4 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
-                  <span>📚</span> Préstamos Activos
-                </h4>
+                <h4 className="font-semibold text-slate-900 mb-3">Préstamos Activos</h4>
                 {loadingDetails ? (
                   <div className="text-sm text-slate-500 text-center py-4">Cargando...</div>
                 ) : userPrestamos.length === 0 ? (
@@ -421,31 +446,29 @@ export default function Usuarios() {
 
               {/* Deudas */}
               <div className="border-t pt-4">
-                <h4 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
-                  <span>💰</span> Deudas
-                </h4>
+                <h4 className="font-semibold text-slate-900 mb-3">Deudas</h4>
                 {loadingDetails ? (
                   <div className="text-sm text-slate-500 text-center py-4">Cargando...</div>
                 ) : userMultas.length === 0 ? (
-                  <div className="text-sm text-emerald-600 text-center py-4 bg-emerald-50 rounded-lg font-medium">✓ Sin deudas pendientes</div>
+                  <div className="text-sm text-emerald-600 text-center py-4 bg-emerald-50 rounded-lg font-medium">Sin deudas pendientes</div>
                 ) : (
                   <div className="space-y-2">
-                    {userMultas.map((multa) => (
-                      <div key={multa.idMulta} className="bg-rose-50 p-3 rounded-lg border border-rose-200">
+                    {userMultas.map((multa, index) => (
+                      <div key={multa.idPrestamo || index} className="bg-rose-50 p-3 rounded-lg border border-rose-200">
                         <div className="flex justify-between items-start">
                           <div className="flex-1">
-                            <p className="font-medium text-rose-900 text-sm">{multa.prestamo?.libro?.titulo || 'Libro no disponible'}</p>
+                            <p className="font-medium text-rose-900 text-sm">{multa.libro?.titulo || 'Préstamo atrasado'}</p>
                             <div className="mt-1 space-y-1">
                               <p className="text-xs text-rose-700">
                                 <span className="font-medium">Días de retraso:</span> {multa.diasRetraso || 'N/A'} días
                               </p>
                               <p className="text-xs text-rose-700">
-                                <span className="font-medium">Estado:</span> {multa.estado === 'pagada' ? 'Pagada' : 'Pendiente'}
+                                <span className="font-medium">Tarifa:</span> $1.000 por día
                               </p>
                             </div>
                           </div>
                           <div className="text-right">
-                            <p className="text-lg font-bold text-rose-700">${multa.monto?.toLocaleString('es-CL') || '0'}</p>
+                            <p className="text-lg font-bold text-rose-700">${parseFloat(multa.monto || 0).toLocaleString('es-CL')}</p>
                           </div>
                         </div>
                       </div>
@@ -454,7 +477,7 @@ export default function Usuarios() {
                       <div className="flex justify-between items-center">
                         <p className="font-semibold text-slate-900">Total Deudas:</p>
                         <p className="text-xl font-bold text-rose-700">
-                          ${userMultas.reduce((sum, m) => sum + (m.monto || 0), 0).toLocaleString('es-CL')}
+                          ${userMultas.reduce((sum, m) => sum + parseFloat(m.monto || 0), 0).toLocaleString('es-CL')}
                         </p>
                       </div>
                     </div>
@@ -463,7 +486,7 @@ export default function Usuarios() {
               </div>
             </div>
 
-            <div className="px-6 py-4 border-t border-slate-200 bg-slate-50">
+            <div className="px-4 py-3 border-t border-slate-200 bg-slate-50">
               <button 
                 onClick={() => setShowUserDetails(false)}
                 className="w-full px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 text-sm font-medium"
@@ -474,6 +497,7 @@ export default function Usuarios() {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

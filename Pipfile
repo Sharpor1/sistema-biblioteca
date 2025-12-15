@@ -15,8 +15,8 @@ requests = "*"
 rest-framework-simplejwt = "*"
 drf-yasg = "*"
 psycopg2-binary = "*"
-whitenoise = "*"
 gunicorn = "*"
+whitenoise = "*"
 
 [dev-packages]
 

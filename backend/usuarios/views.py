@@ -9,6 +9,8 @@ from django.db.models import Q
 from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.serializers import TokenRefreshSerializer
+from django.utils import timezone
+from ops.models import Prestamo
 
 
 # Create your views here.
@@ -20,6 +22,37 @@ class UsersViewSet(viewsets.ModelViewSet):
         if self.action in ['create', 'update', 'partial_update']:
             return LectorWriteSerializer
         return LectorSerializer
+    
+    def list(self, request, *args, **kwargs):
+        """Actualiza préstamos vencidos antes de listar usuarios"""
+        self._actualizar_prestamos_vencidos()
+        return super().list(request, *args, **kwargs)
+    
+    def retrieve(self, request, *args, **kwargs):
+        """Actualiza préstamos vencidos antes de mostrar un usuario"""
+        self._actualizar_prestamos_vencidos()
+        return super().retrieve(request, *args, **kwargs)
+    
+    def _actualizar_prestamos_vencidos(self):
+        """Actualiza automáticamente los préstamos vencidos y bloquea usuarios"""
+        hoy = timezone.now().date()
+        
+        # Actualizar préstamos vencidos
+        prestamos_vencidos = Prestamo.objects.filter(
+            estado='activo',
+            fecha_devolucion__lt=hoy
+        )
+        prestamos_vencidos.update(estado='atrasado')
+        
+        # Bloquear usuarios con préstamos atrasados
+        lectores_con_atrasos = Lector.objects.filter(
+            prestamo__estado='atrasado'
+        ).distinct()
+        
+        for lector in lectores_con_atrasos:
+            if lector.estado != 'bloqueado':
+                lector.estado = 'bloqueado'
+                lector.save()
     
     def get_queryset(self):
         queryset = Lector.objects.all()

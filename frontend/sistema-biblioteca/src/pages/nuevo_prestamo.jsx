@@ -2,8 +2,9 @@ import React, { useEffect, useState } from 'react';
 import Sidebar from '../components/Sidebar';
 import { fetchUsuarios } from '../services/usuariosService';
 import { fetchEjemplares, fetchLibros } from '../services/librosService';
-import { createPrestamo } from '../services/prestamosService';
+import { createPrestamo, fetchPrestamos } from '../services/prestamosService';
 import { fetchMultas } from '../services/multasService';
+import libraryBg from '../assets/sitio-fondo.png';
 
 export default function NuevoPrestamo() {
   const [rut, setRut] = useState('');
@@ -25,16 +26,44 @@ export default function NuevoPrestamo() {
     const load = async () => {
       try {
         setLoading(true);
-        const [u, e, l, m] = await Promise.all([fetchUsuarios(), fetchEjemplares(), fetchLibros(), fetchMultas()]);
+        const [u, e, l, m, p] = await Promise.all([fetchUsuarios(), fetchEjemplares(), fetchLibros(), fetchMultas(), fetchPrestamos()]);
         
-        // Filtrar usuarios sin multas pendientes
-        const rutosConMultas = new Set(m.filter(multa => multa.estadoPago?.toLowerCase() === 'pendiente').map(multa => multa.idPrestamo?.lector?.rut || multa.lector?.rut));
-        const usuariosSinMultas = u.filter(usuario => !rutosConMultas.has(usuario.rut));
+        // No filtrar usuarios, incluir todos
+        // Agregar información de multas y préstamos a cada usuario
+        const usuariosConInfo = u.map(usuario => {
+          // Calcular multas en tiempo real para préstamos atrasados
+          const prestamosUsuario = p.filter(prestamo => 
+            (prestamo.lector?.id === usuario.id || prestamo.lector === usuario.id) &&
+            (prestamo.estado === 'activo' || prestamo.estado === 'atrasado')
+          );
+          
+          const prestamosAtrasados = prestamosUsuario.filter(pr => pr.estado === 'atrasado');
+          const prestamosActivos = prestamosUsuario.filter(pr => pr.estado === 'activo');
+          
+          const multasCalculadas = prestamosAtrasados.map(pr => {
+            const today = new Date();
+            const dueDate = new Date(pr.fecha_devolucion);
+            const daysLate = Math.floor((today - dueDate) / (1000 * 60 * 60 * 24));
+            return daysLate > 0 ? daysLate * 1000 : 0;
+          });
+          
+          const totalMultas = multasCalculadas.reduce((sum, monto) => sum + monto, 0);
+          const cupoMaximo = usuario.rol?.cupoPrestamoMax || 0;
+          const llegaAlMaximo = cupoMaximo > 0 && prestamosActivos.length >= cupoMaximo;
+          
+          return {
+            ...usuario,
+            tieneMultas: totalMultas > 0,
+            montoMultas: totalMultas,
+            cantidadPrestamos: prestamosActivos.length,
+            llegaAlMaximo
+          };
+        });
         
         // Filtrar ejemplares disponibles
         const ejemplaresDisponibles = e.filter(ej => ej.estado?.toLowerCase() === 'disponible');
         
-        setUsuarios(usuariosSinMultas);
+        setUsuarios(usuariosConInfo);
         setEjemplares(ejemplaresDisponibles);
         setLibros(l);
         setMultas(m);
@@ -103,8 +132,20 @@ export default function NuevoPrestamo() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex font-sans text-slate-800">
-      <Sidebar />
+    <div className="min-h-screen flex font-sans text-slate-800 relative">
+      <div 
+        className="absolute inset-0 bg-cover bg-center"
+        style={{
+          backgroundImage: `url(${libraryBg})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat'
+        }}
+      />
+      <div className="absolute inset-0 bg-white/90"/>
+      
+      <div className="relative z-10 flex w-full">
+        <Sidebar />
 
       <main className="flex-1 p-8 overflow-auto">
         <header className="mb-6">
@@ -153,31 +194,28 @@ export default function NuevoPrestamo() {
             </div>
           </div>
 
-          <div className="bg-white rounded-xl p-6">
-            <h3 className="font-semibold mb-4">Estado de Validación</h3>
-            <div className="min-h-[200px] text-sm text-slate-600">
-              {error && <div className="text-rose-600 mb-2">{error}</div>}
-              {loading && <div>Cargando...</div>}
-              {!usuarioValid && !ejemplarValid && !loading && <div>Presiona "Validar" para ver el estado.</div>}
-              {usuarioValid && <div className={`${usuarioValid.ok ? 'text-emerald-600' : 'text-rose-600'}`}>Usuario: {usuarioValid.msg}</div>}
-              {ejemplarValid && <div className={`${ejemplarValid.ok ? 'text-emerald-600' : 'text-rose-600'}`}>Ejemplar: {ejemplarValid.msg}</div>}
+          <div className="bg-white rounded-xl p-6 flex flex-col justify-between">
+            <div>
+              <h4 className="font-semibold mb-2">Confirmar Préstamo</h4>
+              <p className="text-sm text-slate-500 mb-6">Completa las validaciones para continuar</p>
             </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl p-4 mt-6 flex items-center justify-between">
-          <div>
-            <h4 className="font-semibold">Confirmar Préstamo</h4>
-            <p className="text-sm text-slate-500">Completa las validaciones para continuar</p>
-          </div>
-          <div>
-            <button disabled={!canRegister} onClick={registrarPrestamo} className={`px-4 py-2 rounded-lg ${canRegister ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-400'}`}>Registrar Préstamo</button>
+            <button 
+              disabled={!canRegister} 
+              onClick={registrarPrestamo} 
+              className={`w-full px-6 py-3 rounded-lg font-semibold text-base transition-all ${
+                canRegister 
+                  ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm' 
+                  : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+              }`}
+            >
+              Registrar Préstamo
+            </button>
           </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
           <div className="bg-white rounded-xl p-6">
-            <h3 className="font-semibold mb-4">Usuarios Sin Multas ({usuarios.filter(u => {
+            <h3 className="font-semibold mb-4">Usuarios ({usuarios.filter(u => {
               const search = searchUsuarios.toLowerCase();
               return u.nombreCompleto.toLowerCase().includes(search) || u.rut.toLowerCase().includes(search);
             }).length})</h3>
@@ -199,18 +237,23 @@ export default function NuevoPrestamo() {
             
             <div className="space-y-2 max-h-96 overflow-y-auto">
               {usuarios.length === 0 ? (
-                <div className="text-sm text-slate-500">No hay usuarios disponibles sin multas</div>
+                <div className="text-sm text-slate-500">No hay usuarios disponibles</div>
               ) : (
                 usuarios
                   .filter(u => {
                     const search = searchUsuarios.toLowerCase();
                     return u.nombreCompleto.toLowerCase().includes(search) || u.rut.toLowerCase().includes(search);
                   })
-                  .slice(0, 10)
-                  .map((u) => (
+                  .map((u) => {
+                    const tieneProblemas = u.tieneMultas || u.llegaAlMaximo;
+                    return (
                   <div 
                     key={u.rut} 
-                    className="border rounded p-3 cursor-pointer hover:bg-indigo-50 transition-colors"
+                    className={`border rounded p-3 cursor-pointer transition-colors ${
+                      tieneProblemas 
+                        ? 'border-rose-300 bg-rose-50 hover:bg-rose-100' 
+                        : 'hover:bg-indigo-50'
+                    }`}
                     onClick={() => {
                       setRut(u.rut);
                       // Validar después de actualizar el estado
@@ -226,7 +269,7 @@ export default function NuevoPrestamo() {
                     }}
                   >
                     <div className="flex items-center gap-2 font-medium text-sm">
-                      <span>{u.nombreCompleto}</span>
+                      <span className={tieneProblemas ? 'text-rose-700' : ''}>{u.nombreCompleto}</span>
                       {u.rol?.nombre && (
                         u.rol.nombre.toLowerCase().includes('docente') || u.rol.nombre.toLowerCase().includes('profesor') ? (
                           <svg className="w-4 h-4 text-pink-500" fill="currentColor" viewBox="0 0 24 24" title="Docente">
@@ -239,10 +282,24 @@ export default function NuevoPrestamo() {
                           </svg>
                         )
                       )}
+                      {u.tieneMultas && (
+                        <span className="px-2 py-0.5 bg-rose-100 text-rose-700 rounded text-xs font-semibold">
+                          Multa: ${u.montoMultas.toLocaleString('es-CL')}
+                        </span>
+                      )}
+                      {u.llegaAlMaximo && (
+                        <span className="px-2 py-0.5 bg-rose-100 text-rose-700 rounded text-xs font-semibold">
+                          Máx. préstamos
+                        </span>
+                      )}
                     </div>
-                    <div className="text-xs text-slate-500">RUT: {u.rut} — Tipo: {u.rol?.nombre || 'N/A'}</div>
+                    <div className={`text-xs ${tieneProblemas ? 'text-rose-600' : 'text-slate-500'}`}>
+                      RUT: {u.rut} — Tipo: {u.rol?.nombre || 'N/A'}
+                      {u.cantidadPrestamos > 0 && ` — Préstamos activos: ${u.cantidadPrestamos}`}
+                    </div>
                   </div>
-                ))
+                  );
+                })
               )}
             </div>
           </div>
@@ -355,7 +412,6 @@ export default function NuevoPrestamo() {
                                     Disponible
                                   </span>
                                 </div>
-                                <div className="text-xs text-slate-400 mt-2">Ejemplar ID: #{ej.id}</div>
                               </div>
                             ))}
                           </div>
@@ -369,6 +425,7 @@ export default function NuevoPrestamo() {
           </div>
         </div>
       </main>
+      </div>
     </div>
   );
 }

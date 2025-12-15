@@ -186,19 +186,33 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'biblioteca_db',
-        'USER': 'postgresql',
-        'PASSWORD': 'Rinconcito-magico',
-        'HOST': 'db-biblioteca-prod.postgres.database.azure.com',
-        'PORT': '5432',
-       'OPTIONS': {
-            'sslmode': 'require',
-        },
+# Configuración de Base de Datos
+# Por defecto usa SQLite local, pero puede cambiarse a PostgreSQL con variable de entorno
+USE_POSTGRES = os.environ.get('USE_POSTGRES', 'False') == 'True'
+
+if USE_POSTGRES:
+    # Base de datos en la nube (PostgreSQL Azure)
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': 'biblioteca_db',
+            'USER': 'postgresql',
+            'PASSWORD': 'Rinconcito-magico',
+            'HOST': 'db-biblioteca-prod.postgres.database.azure.com',
+            'PORT': '5432',
+            'OPTIONS': {
+                'sslmode': 'require',
+            },
+        }
     }
-}
+else:
+    # Base de datos local (SQLite)
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 SWAGGER_SETTINGS = {
     'SECURITY_DEFINITIONS': {
