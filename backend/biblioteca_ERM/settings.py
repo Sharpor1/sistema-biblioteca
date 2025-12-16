@@ -187,11 +187,7 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Configuración de Base de Datos
-# Por defecto usa SQLite local, pero puede cambiarse a PostgreSQL con variable de entorno
-USE_POSTGRES = os.environ.get('USE_POSTGRES', 'False') == 'True'
 
-if USE_POSTGRES:
-    # Base de datos en la nube (PostgreSQL Azure)
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql',
@@ -205,14 +201,6 @@ if USE_POSTGRES:
             },
         }
     }
-else:
-    # Base de datos local (SQLite)
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / 'db.sqlite3',
-        }
-    }
 
 SWAGGER_SETTINGS = {
     'SECURITY_DEFINITIONS': {
@@ -224,3 +212,4 @@ SWAGGER_SETTINGS = {
     }
 
 }
+
