@@ -26,8 +26,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-ncz#dxf*xv5!ifvn2(7*qh_snpp@9_pz+^9z(@3#o2^hl4+pi1')
 
-DEBUG = os.environ.get('DEBUG', 'True') == 'True'
-#DEBUG = False
+#DEBUG = os.environ.get('DEBUG', 'True') == 'True'
+DEBUG = False
 
 
 ALLOWED_HOSTS = [os.environ.get('WEBSITE_HOSTNAME'), '127.0.0.1', 'localhost'] if not DEBUG else ['*']
@@ -222,4 +222,5 @@ SWAGGER_SETTINGS = {
             'in': 'header'
         }
     }
+
 }
