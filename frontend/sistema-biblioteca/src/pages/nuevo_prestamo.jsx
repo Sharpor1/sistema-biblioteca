@@ -82,7 +82,10 @@ export default function NuevoPrestamo() {
     if (usuario) {
       const diasMin = usuario.rol?.diasPrestamoMin || 1;
       const diasMax = usuario.rol?.diasPrestamoMax || usuario.rol?.diasPrestamoMin || usuario.diasPrestamo || 7;
-      setDias(diasMin); // Establecer el mínimo por defecto
+      // Solo establecer días si aún no se ha ingresado un valor
+      if (!dias || dias === 0) {
+        setDias(diasMin);
+      }
       return setUsuarioValid({ ok: true, msg: `Usuario válido (${usuario.tipoUsuario || 'Tipo no especificado'}) - ${diasMin} a ${diasMax} días`, tipo: usuario.tipoUsuario, id: usuario.id, diasMin, diasMax });
     }
     return setUsuarioValid({ ok: false, msg: 'Usuario no encontrado' });

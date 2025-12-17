@@ -218,14 +218,28 @@ class PrestamoViewSet(viewsets.ModelViewSet):
             
         if prestamo.renovacionesUtilizadas >= usuarioLector.rol.maxRenovaciones:
                 return Response({'detail': 'El préstamo ya ha sido renovado hasta su limite'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Obtener días de renovación del request, o usar días máximos del rol por defecto
+        dias_renovacion = request.data.get('dias', usuarioLector.rol.diasPrestamoMax)
+        
+        # Validar que los días no excedan el máximo permitido
+        if dias_renovacion > usuarioLector.rol.diasPrestamoMax:
+            return Response({
+                'detail': f'No se puede renovar por más de {usuarioLector.rol.diasPrestamoMax} días.'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        if dias_renovacion < 1:
+            return Response({
+                'detail': 'El número de días debe ser al menos 1.'
+            }, status=status.HTTP_400_BAD_REQUEST)
             
-        nuevo_vencimiento = prestamo.fecha_devolucion + timezone.timedelta(days=usuarioLector.rol.diasPrestamoMax)
+        nuevo_vencimiento = prestamo.fecha_devolucion + timezone.timedelta(days=dias_renovacion)
         prestamo.fecha_devolucion = nuevo_vencimiento
         prestamo.renovacionesUtilizadas += 1
         prestamo.save()
         return Response({
                 'status': 'ok',
-                'mensaje': f'Préstamo renovado exitosamente. Nueva fecha de vencimiento: {nuevo_vencimiento.date()}.'
+                'mensaje': f'Préstamo renovado exitosamente por {dias_renovacion} días. Nueva fecha de vencimiento: {nuevo_vencimiento.date()}.'
             })
         
 

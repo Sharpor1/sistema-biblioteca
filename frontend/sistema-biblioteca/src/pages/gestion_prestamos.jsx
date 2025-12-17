@@ -4,6 +4,7 @@ import Sidebar from '../components/Sidebar';
 import { fetchPrestamos, devolverPrestamo, renovarPrestamo } from '../services/prestamosService';
 import { fetchEjemplares } from '../services/librosService';
 import libraryBg from '../assets/sitio-fondo.png';
+import api from '../api/axios';
 
 const LoansManager = () => {
   const [loans, setLoans] = useState([]);
@@ -17,6 +18,8 @@ const LoansManager = () => {
   const [fechaPrestamo, setFechaPrestamo] = useState('');
   const [fechaDevolucion, setFechaDevolucion] = useState('');
   const [fechaDevolucionReal, setFechaDevolucionReal] = useState('');
+  const [renovatingLoan, setRenovatingLoan] = useState(null);
+  const [diasRenovacion, setDiasRenovacion] = useState(7);
 
   useEffect(() => {
     const load = async () => {
@@ -98,7 +101,20 @@ const LoansManager = () => {
 
   async function confirmReturn() {
     try {
-      await devolverPrestamo(returningLoan.idPrestamo);
+      const response = await devolverPrestamo(returningLoan.idPrestamo);
+      
+      // Si hay una multa con monto 0, borrarla
+      if (response.multa && response.multa.idMulta) {
+        const monto = parseFloat(response.multa.monto || 0);
+        if (monto === 0) {
+          try {
+            await api.delete(`/ops/multas/${response.multa.idMulta}/`);
+          } catch (deleteErr) {
+            console.error('No se pudo borrar la multa de monto 0:', deleteErr);
+          }
+        }
+      }
+      
       // Recargar la lista completa con códigos de ejemplares
       const [prestamosData, ejemplaresData] = await Promise.all([
         fetchPrestamos(),
@@ -132,7 +148,7 @@ const LoansManager = () => {
     }
   }
 
-  async function handleRenovar(loan) {
+  function openRenovar(loan) {
     const maxRenovaciones = loan.lector?.rol?.maxRenovaciones || 0;
     const renovacionesUsadas = loan.renovacionesUtilizadas || 0;
     
@@ -141,10 +157,26 @@ const LoansManager = () => {
       return;
     }
     
-    if (!confirm(`¿Desea renovar el préstamo de "${loan.libro?.titulo || 'este libro'}"?`)) return;
+    const diasMaxRenovacion = loan.lector?.rol?.diaMaxRenovacion || 30;
+    setDiasRenovacion(diasMaxRenovacion);
+    setRenovatingLoan({ ...loan, diasMaxRenovacion });
+  }
+  
+  function closeRenovar() {
+    setRenovatingLoan(null);
+    setDiasRenovacion(7);
+  }
+
+  async function confirmRenovar() {
+    if (!diasRenovacion || diasRenovacion < 1) {
+      alert('Ingrese un número válido de días');
+      return;
+    }
     
     try {
-      const response = await renovarPrestamo(loan.idPrestamo);
+      const response = await api.post(`/ops/prestamos/${renovatingLoan.idPrestamo}/renovar-prestamo/`, {
+        dias: diasRenovacion
+      });
       
       // Recargar la lista completa con códigos de ejemplares
       const [prestamosData, ejemplaresData] = await Promise.all([
@@ -170,7 +202,8 @@ const LoansManager = () => {
       
       setLoans(prestamosEnriquecidos);
       setEjemplares(ejemplaresData);
-      alert(response.mensaje || 'Préstamo renovado exitosamente.');
+      alert(response.data?.mensaje || 'Préstamo renovado exitosamente.');
+      closeRenovar();
     } catch (err) {
       console.error('Error al renovar préstamo:', err);
       const errorMsg = err.response?.data?.detail || err.response?.data?.mensaje || 'No se pudo renovar el préstamo';
@@ -441,7 +474,7 @@ const LoansManager = () => {
                                     
                                     return puedeRenovar && !estaAtrasado && (
                                         <button 
-                                            onClick={() => handleRenovar(loan)} 
+                                            onClick={() => openRenovar(loan)} 
                                             className="text-indigo-600 hover:text-indigo-800 text-sm font-medium hover:underline"
                                             title={`Renovaciones: ${renovacionesUsadas}/${maxRenovaciones}`}
                                         >
@@ -566,6 +599,59 @@ const LoansManager = () => {
                   <button onClick={closeReturn} className="px-4 py-2 text-slate-700 border border-slate-300 rounded-lg hover:bg-slate-50 text-sm font-medium">Cancelar</button>
                   <button onClick={confirmReturn} className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm font-medium">Confirmar Devolución</button>
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal de Renovar Préstamo */}
+        {renovatingLoan && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+            <div className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4 p-6">
+              <h3 className="text-lg font-bold text-slate-800 mb-4">Renovar Préstamo</h3>
+              
+              <div className="space-y-4 mb-6">
+                <div className="bg-slate-50 rounded-lg p-4">
+                  <p className="text-sm text-slate-600">Libro</p>
+                  <p className="font-semibold text-slate-900">{renovatingLoan.libro?.titulo || 'Libro no especificado'}</p>
+                </div>
+                
+                <div className="bg-slate-50 rounded-lg p-4">
+                  <p className="text-sm text-slate-600">Usuario</p>
+                  <p className="font-semibold text-slate-900">{renovatingLoan.lector?.nombreCompleto || 'Usuario no especificado'}</p>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Días de renovación
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max={renovatingLoan.diasMaxRenovacion || 30}
+                    value={diasRenovacion}
+                    onChange={(e) => setDiasRenovacion(parseInt(e.target.value) || 1)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                  <p className="text-xs text-slate-500 mt-1">
+                    Máximo: {renovatingLoan.diasMaxRenovacion || 30} días
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3">
+                <button 
+                  onClick={closeRenovar} 
+                  className="px-4 py-2 text-slate-700 border border-slate-300 rounded-lg hover:bg-slate-50 text-sm font-medium"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  onClick={confirmRenovar} 
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium"
+                >
+                  Confirmar Renovación
+                </button>
               </div>
             </div>
           </div>

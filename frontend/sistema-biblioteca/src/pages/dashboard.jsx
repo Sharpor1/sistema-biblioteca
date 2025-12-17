@@ -124,6 +124,9 @@ export default function Dashboard() {
         const multasPagadasHoy = multas.filter(m => {
           if (m.estadoPago !== 'pagada' && m.estadoPago !== 'PAGADA' && m.estadoPago !== 'pagado') return false;
           if (!m.fechaMulta) return false;
+          // Filtrar multas de monto 0
+          const monto = parseFloat(m.monto || 0);
+          if (monto === 0) return false;
           const fecha = new Date(m.fechaMulta);
           return fecha >= inicioDelDia && fecha < finDelDia;
         }).length;
