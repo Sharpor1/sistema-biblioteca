@@ -7,10 +7,13 @@ import libraryBg from '../assets/sitio-fondo.png';
 import api from '../api/axios';
 
 const LoansManager = () => {
+  // estados principales
   const [loans, setLoans] = useState([]);
   const [ejemplares, setEjemplares] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  
+  // filtros y busqueda
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('todos');
   const [currentPage, setCurrentPage] = useState(1);
@@ -18,9 +21,12 @@ const LoansManager = () => {
   const [fechaPrestamo, setFechaPrestamo] = useState('');
   const [fechaDevolucion, setFechaDevolucion] = useState('');
   const [fechaDevolucionReal, setFechaDevolucionReal] = useState('');
+  
+  // ventana de renovacion
   const [renovatingLoan, setRenovatingLoan] = useState(null);
   const [diasRenovacion, setDiasRenovacion] = useState(7);
 
+  // cargar prestamos al inicio
   useEffect(() => {
     const load = async () => {
       try {
@@ -59,7 +65,7 @@ const LoansManager = () => {
     load();
   }, []);
 
-  // Helper para los colores de estado
+  // asignar colores segun estado
   const getStatusColor = (status) => {
     switch (status) {
       case 'activo': return 'bg-emerald-100 text-emerald-700 border-emerald-200';
@@ -80,25 +86,29 @@ const LoansManager = () => {
 
   const navigate = useNavigate();
 
-  // Return modal state
+  // ventana de devolucion
   const [returningLoan, setReturningLoan] = useState(null);
 
+  // calcular multa por retraso
   function calculateFine(returnDate) {
     const today = new Date();
     const dueDate = new Date(returnDate);
     const daysLate = Math.floor((today - dueDate) / (1000 * 60 * 60 * 24));
     if (daysLate <= 0) return 0;
-    return daysLate * 1000; // $1000 por día de retraso
+    return daysLate * 1000; 
   }
 
+  // abrir ventana de devolucion
   function openReturn(loan) {
     setReturningLoan(loan);
   }
 
+  // cerrar ventana
   function closeReturn() {
     setReturningLoan(null);
   }
 
+  // confirmar devolucion del libro
   async function confirmReturn() {
     try {
       const response = await devolverPrestamo(returningLoan.idPrestamo);
@@ -148,6 +158,7 @@ const LoansManager = () => {
     }
   }
 
+  // abrir ventana de renovacion
   function openRenovar(loan) {
     const maxRenovaciones = loan.lector?.rol?.maxRenovaciones || 0;
     const renovacionesUsadas = loan.renovacionesUtilizadas || 0;
@@ -162,11 +173,13 @@ const LoansManager = () => {
     setRenovatingLoan({ ...loan, diasMaxRenovacion });
   }
   
+  // cerrar ventana de renovacion
   function closeRenovar() {
     setRenovatingLoan(null);
     setDiasRenovacion(7);
   }
 
+  // confirmar renovacion
   async function confirmRenovar() {
     if (!diasRenovacion || diasRenovacion < 1) {
       alert('Ingrese un número válido de días');

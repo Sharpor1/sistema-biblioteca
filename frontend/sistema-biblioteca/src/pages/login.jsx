@@ -75,7 +75,7 @@ const Login = () => {
         {/* Formulario */}
         <div className="p-8 bg-white">
           
-          {/* SECCIÓN NUEVA: Mensaje de Error Visual */}
+          {/*  Mensaje de Error Visual */}
           {error && (
             <div className="mb-6 bg-rose-50 border border-rose-200 text-rose-600 px-4 py-3 rounded-lg text-sm flex items-center gap-2">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
@@ -101,7 +101,7 @@ const Login = () => {
                 <input
                   id="rut"
                   name="rut"
-                  type="text" // Si usas username en Django, cambia esto a type="text"
+                  type="text" 
                   required
                   className="pl-10 block w-full rounded-lg border-slate-300 bg-slate-50 border focus:bg-white focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm py-2.5 transition-colors duration-200 ease-in-out outline-none"
                   placeholder="1234567-0"

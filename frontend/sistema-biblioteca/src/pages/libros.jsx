@@ -690,7 +690,7 @@ export default function Libros() {
 								{selectedBook.ejemplares.every(e => e.estado === 'baja') && selectedBook.ejemplares.length > 0 && (
 									<div className="mt-4 p-3 bg-rose-50 border border-rose-200 rounded-lg">
 										<p className="text-sm text-rose-700">
-										<strong>⚠️ Fuera de Stock:</strong> Todos los ejemplares de este libro están dados de baja.
+										<strong>Fuera de Stock:</strong> Todos los ejemplares de este libro están dados de baja.
 										</p>
 									</div>
 								)}

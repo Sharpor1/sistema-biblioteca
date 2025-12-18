@@ -9,6 +9,7 @@ import { generarReporteHTML } from '../utils/reporteTemplate';
 import libraryBg from '../assets/sitio-fondo.png';
 
 export default function Dashboard() {
+  // estadisticas del sistema
   const [stats, setStats] = useState({
     totalLibros: 0,
     ejemplaresDisponibles: 0,
@@ -26,12 +27,17 @@ export default function Dashboard() {
     multasPagadasHoy: 0,
     usuariosConPrestamosAtrasados: 0,
   });
+  
+  // control de estado
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [datosCompletos, setDatosCompletos] = useState(null);
+  
+  // ventana de reporte
   const [modalReporte, setModalReporte] = useState(false);
   const [observaciones, setObservaciones] = useState('');
 
+  // cargar datos del dashboard
   useEffect(() => {
     const loadDashboardData = async () => {
       try {

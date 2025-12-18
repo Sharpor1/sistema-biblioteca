@@ -7,21 +7,27 @@ import { fetchMultas } from '../services/multasService';
 import libraryBg from '../assets/sitio-fondo.png';
 
 export default function NuevoPrestamo() {
+  // estados del formulario
   const [rut, setRut] = useState('');
   const [codigoEjemplar, setCodigoEjemplar] = useState('');
   const [usuarioValid, setUsuarioValid] = useState(null);
   const [ejemplarValid, setEjemplarValid] = useState(null);
   const [dias, setDias] = useState(0);
+  
+  // datos de las listas
   const [usuarios, setUsuarios] = useState([]);
   const [ejemplares, setEjemplares] = useState([]);
   const [libros, setLibros] = useState([]);
   const [multas, setMultas] = useState([]);
+  
+  // control de estado
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchUsuarios, setSearchUsuarios] = useState('');
   const [searchLibros, setSearchLibros] = useState('');
   const [expandedLibro, setExpandedLibro] = useState(null);
 
+  // cargar datos iniciales
   useEffect(() => {
     const load = async () => {
       try {
@@ -76,6 +82,7 @@ export default function NuevoPrestamo() {
     load();
   }, []);
 
+  // validar que el usuario exista
   function validarUsuario() {
     if (!rut) return setUsuarioValid({ ok: false, msg: 'Ingrese RUT' });
     const usuario = usuarios.find((u) => u.rut === rut);
@@ -91,6 +98,7 @@ export default function NuevoPrestamo() {
     return setUsuarioValid({ ok: false, msg: 'Usuario no encontrado' });
   }
 
+  // validar que el ejemplar este disponible
   function validarEjemplar() {
     if (!codigoEjemplar) return setEjemplarValid({ ok: false, msg: 'Ingrese código' });
     const ej = ejemplares.find((e) => e.codigoEjemplar === codigoEjemplar && e.estado?.toLowerCase() === 'disponible');
@@ -100,6 +108,7 @@ export default function NuevoPrestamo() {
 
   const canRegister = usuarioValid && usuarioValid.ok && ejemplarValid && ejemplarValid.ok;
 
+  // registrar el prestamo
   async function registrarPrestamo() {
     if (!canRegister) return;
     if (dias <= 0) {

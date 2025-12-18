@@ -9,7 +9,7 @@ const api = axios.create({
         : 'https://rinconcitomagico-d2ejfmc8aebdbqag.canadacentral-01.azurewebsites.net/api',  // Producción Azure
 });
 
-// Variable para evitar múltiples solicitudes de refresh simultáneas
+// variables para controlar la renovacion del token
 let isRefreshing = false;
 let failedQueue = [];
 
@@ -24,7 +24,7 @@ const processQueue = (error, token = null) => {
     failedQueue = [];
 };
 
-// INTERCEPTOR DE PETICIONES (REQUEST)
+// agregar token a cada peticion
 api.interceptors.request.use(
     (config) => {
         const token = localStorage.getItem('token');
@@ -38,13 +38,13 @@ api.interceptors.request.use(
     }
 );
 
-// INTERCEPTOR DE RESPUESTAS (RESPONSE) - Con refresh token automático
+// manejar respuestas y renovar token si expira
 api.interceptors.response.use(
     (response) => response,
     async (error) => {
         const originalRequest = error.config;
 
-        // Si el error es 401 y no hemos intentado refresh aún
+        // si da error 401 intentar renovar el token
         if (error.response?.status === 401 && !originalRequest._retry) {
             if (isRefreshing) {
                 // Si ya hay un refresh en progreso, poner esta petición en cola
