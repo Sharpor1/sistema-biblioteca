@@ -26,8 +26,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-ncz#dxf*xv5!ifvn2(7*qh_snpp@9_pz+^9z(@3#o2^hl4+pi1')
 
-DEBUG = os.environ.get('DEBUG', 'True') == 'True'
-#DEBUG = False
+#DEBUG = os.environ.get('DEBUG', 'True') == 'True'
+DEBUG = False
 
 
 ALLOWED_HOSTS = [os.environ.get('WEBSITE_HOSTNAME'), '127.0.0.1', 'localhost'] if not DEBUG else ['*']
@@ -100,21 +100,13 @@ CORS_ALLOWED_ORIGINS = [
 # Seguridad de cookies y SSL (produccion)
 
 # --- Para desplegar en produccion
-if not DEBUG:
-    CSRF_COOKIE_SECURE = True
-    SESSION_COOKIE_SECURE = True
-    SECURE_SSL_REDIRECT = True
-    SECURE_HSTS_SECONDS = 31536000
-    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-    SECURE_HSTS_PRELOAD = True
-    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-
-else:
-    # --- CONFIGURACIÓN PARA LOCAL (DEV) ---
-    CSRF_COOKIE_SECURE = False
-    SESSION_COOKIE_SECURE = False
-    SECURE_SSL_REDIRECT = False
-    SECURE_HSTS_SECONDS = 0
+CSRF_COOKIE_SECURE = True
+SESSION_COOKIE_SECURE = True
+SECURE_SSL_REDIRECT = True
+SECURE_HSTS_SECONDS = 31536000
+SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+SECURE_HSTS_PRELOAD = True
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 # --- Solo para desarrollo local (SIN HTTPS) ---
 
@@ -186,19 +178,21 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# Configuración de Base de Datos
+
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'biblioteca_db',
-        'USER': 'postgresql',
-        'PASSWORD': 'Rinconcito-magico',
-        'HOST': 'db-biblioteca-prod.postgres.database.azure.com',
-        'PORT': '5432',
-       'OPTIONS': {
-            'sslmode': 'require',
-        },
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': 'biblioteca_db',
+            'USER': 'postgresql',
+            'PASSWORD': 'Rinconcito-magico',
+            'HOST': 'db-biblioteca-prod.postgres.database.azure.com',
+            'PORT': '5432',
+            'OPTIONS': {
+                'sslmode': 'require',
+            },
+        }
     }
-}
 
 SWAGGER_SETTINGS = {
     'SECURITY_DEFINITIONS': {
@@ -208,4 +202,8 @@ SWAGGER_SETTINGS = {
             'in': 'header'
         }
     }
+
 }
+
+
+

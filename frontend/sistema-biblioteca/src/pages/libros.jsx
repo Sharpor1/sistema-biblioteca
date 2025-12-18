@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import Sidebar from '../components/Sidebar';
 import { fetchLibros, fetchEjemplares, createLibro, createEjemplar, darBajaEjemplar, activarEjemplar as activarEjemplarService } from '../services/librosService';
+import libraryBg from '../assets/sitio-fondo.png';
 
 export default function Libros() {
 	const [books, setBooks] = useState([]);
@@ -348,7 +349,20 @@ export default function Libros() {
 	}
 
 	return (
-		<div className="min-h-screen bg-slate-50 flex font-sans text-slate-800">
+	<div className="min-h-screen flex font-sans text-slate-800 relative">
+		{/* Imagen de fondo */}
+		<div 
+			className="absolute inset-0 bg-cover bg-center"
+			style={{
+				backgroundImage: `url(${libraryBg})`,
+				backgroundSize: 'cover',
+				backgroundPosition: 'center',
+				backgroundRepeat: 'no-repeat'
+			}}
+		/>
+		<div className="absolute inset-0 bg-white/95"/>
+		
+		<div className="relative z-10 flex w-full">
 			<Sidebar />
 			<main className="flex-1 p-8 overflow-y-auto">
 				{/* Header */}
@@ -388,17 +402,15 @@ export default function Libros() {
 				<div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
 					<div className="p-5 border-b border-slate-100">
 						<div className="relative w-full sm:w-80">
-							<span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400">
-								<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-									<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-								</svg>
-							</span>
-							<input 
-								type="text" 
-								placeholder="Buscar por título, autor o ISBN..." 
-								value={searchTerm}
-								onChange={(e) => setSearchTerm(e.target.value)}
-								className="pl-10 w-full py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
+						<svg className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+							<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+						</svg>
+						<input 
+							type="text" 
+							placeholder="Buscar por título, autor o ISBN..." 
+							value={searchTerm}
+							onChange={(e) => setSearchTerm(e.target.value)}
+							className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
 							/>
 						</div>
 					</div>
@@ -409,9 +421,9 @@ export default function Libros() {
 									<th className="px-6 py-4">Libro</th>
 									<th className="px-6 py-4">Autor</th>
 									<th className="px-6 py-4">Editorial</th>
-									<th className="px-6 py-4">ISBN</th>
-									<th className="px-6 py-4">Año</th>
-									<th className="px-6 py-4">Ejemplares</th>
+								<th className="px-6 py-4">ISBN</th>
+								<th className="px-6 py-4">Año</th>
+								<th className="px-6 py-4">Estado</th>
 									<th className="px-6 py-4">Acciones</th>
 								</tr>
 							</thead>
@@ -446,12 +458,15 @@ export default function Libros() {
 													{book.ejemplares.length > 0 && book.ejemplares.every(e => e.estado === 'baja') && 
 														<span className="ml-2 text-xs text-rose-600 font-semibold">(Fuera de Stock)</span>
 													}
+													{book.ejemplares.length > 0 && book.ejemplares.every(e => e.estado === 'prestado' || e.estado === 'baja') && 
+														book.ejemplares.some(e => e.estado === 'prestado') &&
+														<span className="ml-2 text-xs text-amber-600 font-semibold">(Fuera de Stock)</span>
+													}
 												</div>
-												<div className="text-xs text-slate-500">ID: #{book.idLibro}</div>
 											</td>
 											<td className="px-6 py-4 text-sm text-slate-700">{book.autor}</td>
 											<td className="px-6 py-4 text-sm text-slate-700">{book.editorial}</td>
-											<td className="px-6 py-4 text-sm text-slate-700">{book.isbn}</td>
+										<td className="px-6 py-4 text-sm text-slate-700">{book.isbn || '-'}</td>
 											<td className="px-6 py-4 text-sm text-slate-700">{book.fecha_publicacion ? new Date(book.fecha_publicacion).getFullYear() : '-'}</td>
 											<td className="px-6 py-4">
 												<div className="flex gap-2">
@@ -617,7 +632,6 @@ export default function Libros() {
 												<div className="flex justify-between items-start mb-3">
 													<div className="flex-1">
 														<div className="font-medium text-slate-900">Código: {ej.codigoEjemplar}</div>
-														<div className="text-sm text-slate-500 mt-1">ID: #{ej.idEjemplar}</div>
 														
 														{ej.prestadoA && (
 															<div className="mt-3 p-3 bg-amber-50 border-l-4 border-amber-400 rounded">
@@ -676,7 +690,7 @@ export default function Libros() {
 								{selectedBook.ejemplares.every(e => e.estado === 'baja') && selectedBook.ejemplares.length > 0 && (
 									<div className="mt-4 p-3 bg-rose-50 border border-rose-200 rounded-lg">
 										<p className="text-sm text-rose-700">
-										<strong>⚠️ Fuera de Stock:</strong> Todos los ejemplares de este libro están dados de baja.
+										<strong>Fuera de Stock:</strong> Todos los ejemplares de este libro están dados de baja.
 										</p>
 									</div>
 								)}
@@ -750,6 +764,7 @@ export default function Libros() {
 				)}
 			</main>
 		</div>
-	);
+	</div>
+  );
 }
 

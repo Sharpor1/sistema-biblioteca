@@ -3,17 +3,30 @@ import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import { fetchPrestamos, devolverPrestamo, renovarPrestamo } from '../services/prestamosService';
 import { fetchEjemplares } from '../services/librosService';
+import libraryBg from '../assets/sitio-fondo.png';
+import api from '../api/axios';
 
 const LoansManager = () => {
+  // estados principales
   const [loans, setLoans] = useState([]);
   const [ejemplares, setEjemplares] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  
+  // filtros y busqueda
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('todos');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 4;
+  const [fechaPrestamo, setFechaPrestamo] = useState('');
+  const [fechaDevolucion, setFechaDevolucion] = useState('');
+  const [fechaDevolucionReal, setFechaDevolucionReal] = useState('');
+  
+  // ventana de renovacion
+  const [renovatingLoan, setRenovatingLoan] = useState(null);
+  const [diasRenovacion, setDiasRenovacion] = useState(7);
 
+  // cargar prestamos al inicio
   useEffect(() => {
     const load = async () => {
       try {
@@ -52,7 +65,7 @@ const LoansManager = () => {
     load();
   }, []);
 
-  // Helper para los colores de estado
+  // asignar colores segun estado
   const getStatusColor = (status) => {
     switch (status) {
       case 'activo': return 'bg-emerald-100 text-emerald-700 border-emerald-200';
@@ -73,28 +86,45 @@ const LoansManager = () => {
 
   const navigate = useNavigate();
 
-  // Return modal state
+  // ventana de devolucion
   const [returningLoan, setReturningLoan] = useState(null);
 
+  // calcular multa por retraso
   function calculateFine(returnDate) {
     const today = new Date();
     const dueDate = new Date(returnDate);
     const daysLate = Math.floor((today - dueDate) / (1000 * 60 * 60 * 24));
     if (daysLate <= 0) return 0;
-    return daysLate * 1000; // $1000 por día de retraso
+    return daysLate * 1000; 
   }
 
+  // abrir ventana de devolucion
   function openReturn(loan) {
     setReturningLoan(loan);
   }
 
+  // cerrar ventana
   function closeReturn() {
     setReturningLoan(null);
   }
 
+  // confirmar devolucion del libro
   async function confirmReturn() {
     try {
-      await devolverPrestamo(returningLoan.idPrestamo);
+      const response = await devolverPrestamo(returningLoan.idPrestamo);
+      
+      // Si hay una multa con monto 0, borrarla
+      if (response.multa && response.multa.idMulta) {
+        const monto = parseFloat(response.multa.monto || 0);
+        if (monto === 0) {
+          try {
+            await api.delete(`/ops/multas/${response.multa.idMulta}/`);
+          } catch (deleteErr) {
+            console.error('No se pudo borrar la multa de monto 0:', deleteErr);
+          }
+        }
+      }
+      
       // Recargar la lista completa con códigos de ejemplares
       const [prestamosData, ejemplaresData] = await Promise.all([
         fetchPrestamos(),
@@ -128,7 +158,8 @@ const LoansManager = () => {
     }
   }
 
-  async function handleRenovar(loan) {
+  // abrir ventana de renovacion
+  function openRenovar(loan) {
     const maxRenovaciones = loan.lector?.rol?.maxRenovaciones || 0;
     const renovacionesUsadas = loan.renovacionesUtilizadas || 0;
     
@@ -137,10 +168,28 @@ const LoansManager = () => {
       return;
     }
     
-    if (!confirm(`¿Desea renovar el préstamo de "${loan.libro?.titulo || 'este libro'}"?`)) return;
+    const diasMaxRenovacion = loan.lector?.rol?.diaMaxRenovacion || 30;
+    setDiasRenovacion(diasMaxRenovacion);
+    setRenovatingLoan({ ...loan, diasMaxRenovacion });
+  }
+  
+  // cerrar ventana de renovacion
+  function closeRenovar() {
+    setRenovatingLoan(null);
+    setDiasRenovacion(7);
+  }
+
+  // confirmar renovacion
+  async function confirmRenovar() {
+    if (!diasRenovacion || diasRenovacion < 1) {
+      alert('Ingrese un número válido de días');
+      return;
+    }
     
     try {
-      const response = await renovarPrestamo(loan.idPrestamo);
+      const response = await api.post(`/ops/prestamos/${renovatingLoan.idPrestamo}/renovar-prestamo/`, {
+        dias: diasRenovacion
+      });
       
       // Recargar la lista completa con códigos de ejemplares
       const [prestamosData, ejemplaresData] = await Promise.all([
@@ -166,7 +215,8 @@ const LoansManager = () => {
       
       setLoans(prestamosEnriquecidos);
       setEjemplares(ejemplaresData);
-      alert(response.mensaje || 'Préstamo renovado exitosamente.');
+      alert(response.data?.mensaje || 'Préstamo renovado exitosamente.');
+      closeRenovar();
     } catch (err) {
       console.error('Error al renovar préstamo:', err);
       const errorMsg = err.response?.data?.detail || err.response?.data?.mensaje || 'No se pudo renovar el préstamo';
@@ -179,9 +229,20 @@ const LoansManager = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex font-sans text-slate-800">
+    <div className="min-h-screen flex font-sans text-slate-800 relative">
+      <div 
+        className="absolute inset-0 bg-cover bg-center"
+        style={{
+          backgroundImage: `url(${libraryBg})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat'
+        }}
+      />
+      <div className="absolute inset-0 bg-white/95"/>
       
-      <Sidebar />
+      <div className="relative z-10 flex w-full">
+        <Sidebar />
 
       {/* --- Contenido Principal --- */}
       <main className="flex-1 p-8 overflow-y-auto">
@@ -236,30 +297,62 @@ const LoansManager = () => {
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
           
           {/* Filtros de Tabla */}
-          <div className="p-5 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-center gap-4">
-            <div className="relative w-full sm:w-72">
-               <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400">
-                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-               </span>
-               <input 
-                 type="text" 
-                 placeholder="Buscar por libro o usuario..." 
-                 value={searchTerm}
-                 onChange={(e) => setSearchTerm(e.target.value)}
-                 className="pl-10 w-full py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors" 
-               />
+          <div className="p-5 border-b border-slate-100">
+            <div className="flex flex-col sm:flex-row gap-4 mb-4">
+              <div className="relative flex-1">
+                 <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                 </svg>
+                 <input 
+                   type="text" 
+                   placeholder="Buscar por libro o usuario..." 
+                   value={searchTerm}
+                   onChange={(e) => setSearchTerm(e.target.value)}
+                   className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent" 
+                 />
+              </div>
+              <div>
+                  <select 
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    className="py-2 pl-3 pr-8 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:border-indigo-500 text-slate-600 h-full"
+                  >
+                      <option value="todos">Todos los estados</option>
+                      <option value="activo">Activo</option>
+                      <option value="atrasado">Atrasado</option>
+                      <option value="finalizado">Finalizado</option>
+                  </select>
+              </div>
             </div>
-            <div className="flex gap-2">
-                <select 
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="py-2 pl-3 pr-8 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:border-indigo-500 text-slate-600"
-                >
-                    <option value="todos">Todos los estados</option>
-                    <option value="activo">Activo</option>
-                    <option value="atrasado">Atrasado</option>
-                    <option value="finalizado">Finalizado</option>
-                </select>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-xs text-slate-600 mb-1">Fecha de Préstamo</label>
+                <input 
+                  type="date" 
+                  value={fechaPrestamo}
+                  onChange={(e) => setFechaPrestamo(e.target.value)}
+                  className="w-full py-2 px-3 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-slate-600 mb-1">Fecha de Devolución Pactada</label>
+                <input 
+                  type="date" 
+                  value={fechaDevolucion}
+                  onChange={(e) => setFechaDevolucion(e.target.value)}
+                  className="w-full py-2 px-3 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-slate-600 mb-1">Fecha de Devolución Real</label>
+                <input 
+                  type="date" 
+                  value={fechaDevolucionReal}
+                  onChange={(e) => setFechaDevolucionReal(e.target.value)}
+                  className="w-full py-2 px-3 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                />
+              </div>
             </div>
           </div>
 
@@ -291,9 +384,30 @@ const LoansManager = () => {
                         const search = searchTerm.toLowerCase();
                         const nombreUsuario = (loan.lector?.nombreCompleto || '').toLowerCase();
                         const codigoEj = (loan.codigoEjemplar?.codigoEjemplar || loan.codigoEjemplar || '').toString().toLowerCase();
+                        const codigoEjTexto = (loan.codigoEjemplarTexto || '').toString().toLowerCase();
                         const nombreLibro = (loan.libro?.titulo || loan.codigoEjemplar?.libro?.titulo || '').toLowerCase();
                         
-                        return nombreUsuario.includes(search) || codigoEj.includes(search) || nombreLibro.includes(search);
+                        if (!nombreUsuario.includes(search) && !codigoEj.includes(search) && !codigoEjTexto.includes(search) && !nombreLibro.includes(search)) {
+                          return false;
+                        }
+                      }
+                      
+                      // Filtro por fecha de préstamo
+                      if (fechaPrestamo) {
+                        const fechaPrestamoLoan = loan.fecha_prestamo?.split('T')[0];
+                        if (fechaPrestamoLoan !== fechaPrestamo) return false;
+                      }
+                      
+                      // Filtro por fecha de devolución pactada
+                      if (fechaDevolucion) {
+                        const fechaDevolucionLoan = loan.fecha_devolucion?.split('T')[0];
+                        if (fechaDevolucionLoan !== fechaDevolucion) return false;
+                      }
+                      
+                      // Filtro por fecha de devolución real
+                      if (fechaDevolucionReal) {
+                        const fechaDevolucionRealLoan = loan.fecha_devolucion_real?.split('T')[0];
+                        if (fechaDevolucionRealLoan !== fechaDevolucionReal) return false;
                       }
                       
                       return true;
@@ -310,12 +424,11 @@ const LoansManager = () => {
                   
                   return paginatedLoans.map((loan) => (
                   <tr key={loan.idPrestamo} className="hover:bg-slate-50/80 transition-colors duration-150">
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-3">
                         <div className="font-semibold text-slate-900 text-base">{loan.libro?.titulo || loan.codigoEjemplar?.libro?.titulo || 'Libro no especificado'}</div>
-                        <div className="text-sm text-slate-700 mt-1 font-semibold">Ejemplar: {loan.codigoEjemplarTexto || loan.codigoEjemplar?.codigoEjemplar || '-'}</div>
-                        <div className="text-xs text-slate-400 mt-0.5">ID Préstamo: #{loan.idPrestamo}</div>
+                        <div className="text-xs text-slate-500 mt-1">Ejemplar: {loan.codigoEjemplarTexto || loan.codigoEjemplar?.codigoEjemplar || '-'}</div>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
                             <div className="h-8 w-8 rounded-full bg-slate-200 flex items-center justify-center text-xs font-bold text-slate-600">
                                 {loan.lector?.nombreCompleto ? loan.lector.nombreCompleto.charAt(0) : (loan.lector?.charAt ? loan.lector.charAt(0) : '?')}
@@ -342,13 +455,13 @@ const LoansManager = () => {
                             </div>
                         </div>
                     </td>
-                    <td className="px-6 py-4 text-sm text-slate-600">
+                    <td className="px-4 py-3 text-sm text-slate-600">
                       {loan.fecha_prestamo ? new Date(loan.fecha_prestamo).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-'}
                     </td>
-                    <td className="px-6 py-4 text-sm text-slate-600">
+                    <td className="px-4 py-3 text-sm text-slate-600">
                       {loan.fecha_devolucion ? new Date(loan.fecha_devolucion).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-'}
                     </td>
-                    <td className="px-6 py-4 text-sm text-slate-600">
+                    <td className="px-4 py-3 text-sm text-slate-600">
                       {loan.fecha_devolucion_real ? (
                         <span className="text-emerald-600 font-medium">
                           {new Date(loan.fecha_devolucion_real).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })}
@@ -357,23 +470,24 @@ const LoansManager = () => {
                         <span className="text-slate-400">Pendiente</span>
                       )}
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-3">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(loan.estado)}`}>
                         <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${loan.estado === 'activo' ? 'bg-emerald-500' : loan.estado === 'atrasado' ? 'bg-rose-500' : 'bg-slate-500'}`}></span>
                         {getStatusLabel(loan.estado)}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-right">
+                    <td className="px-4 py-3 text-right">
                         {loan.estado !== 'finalizado' ? (
                             <div className="flex gap-2 justify-end">
                                 {(() => {
                                     const maxRenovaciones = loan.lector?.rol?.maxRenovaciones || 0;
                                     const renovacionesUsadas = loan.renovacionesUtilizadas || 0;
                                     const puedeRenovar = renovacionesUsadas < maxRenovaciones;
+                                    const estaAtrasado = loan.estado === 'atrasado';
                                     
-                                    return puedeRenovar && (
+                                    return puedeRenovar && !estaAtrasado && (
                                         <button 
-                                            onClick={() => handleRenovar(loan)} 
+                                            onClick={() => openRenovar(loan)} 
                                             className="text-indigo-600 hover:text-indigo-800 text-sm font-medium hover:underline"
                                             title={`Renovaciones: ${renovacionesUsadas}/${maxRenovaciones}`}
                                         >
@@ -437,7 +551,7 @@ const LoansManager = () => {
                     className="px-3 py-1 border border-slate-200 rounded hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
                     disabled={currentPage === totalPages}
                   >
-                    Siguiente
+                    Siguiente →
                   </button>
                 </div>
               </div>
@@ -456,7 +570,7 @@ const LoansManager = () => {
               <div className="p-6 space-y-4">
                 <div className="bg-slate-50 p-4 rounded-lg">
                   <p className="text-sm text-slate-600">Código Ejemplar</p>
-                  <p className="text-lg font-semibold text-slate-900">{returningLoan.codigoEjemplar?.codigoEjemplar || returningLoan.codigoEjemplar}</p>
+                  <p className="text-lg font-semibold text-slate-900">{returningLoan.codigoEjemplarTexto || returningLoan.codigoEjemplar?.codigoEjemplar || returningLoan.codigoEjemplar}</p>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="bg-slate-50 p-3 rounded-lg">
@@ -502,7 +616,61 @@ const LoansManager = () => {
             </div>
           </div>
         )}
+
+        {/* Modal de Renovar Préstamo */}
+        {renovatingLoan && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+            <div className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4 p-6">
+              <h3 className="text-lg font-bold text-slate-800 mb-4">Renovar Préstamo</h3>
+              
+              <div className="space-y-4 mb-6">
+                <div className="bg-slate-50 rounded-lg p-4">
+                  <p className="text-sm text-slate-600">Libro</p>
+                  <p className="font-semibold text-slate-900">{renovatingLoan.libro?.titulo || 'Libro no especificado'}</p>
+                </div>
+                
+                <div className="bg-slate-50 rounded-lg p-4">
+                  <p className="text-sm text-slate-600">Usuario</p>
+                  <p className="font-semibold text-slate-900">{renovatingLoan.lector?.nombreCompleto || 'Usuario no especificado'}</p>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Días de renovación
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max={renovatingLoan.diasMaxRenovacion || 30}
+                    value={diasRenovacion}
+                    onChange={(e) => setDiasRenovacion(parseInt(e.target.value) || 1)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                  <p className="text-xs text-slate-500 mt-1">
+                    Máximo: {renovatingLoan.diasMaxRenovacion || 30} días
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3">
+                <button 
+                  onClick={closeRenovar} 
+                  className="px-4 py-2 text-slate-700 border border-slate-300 rounded-lg hover:bg-slate-50 text-sm font-medium"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  onClick={confirmRenovar} 
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium"
+                >
+                  Confirmar Renovación
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
+      </div>
     </div>
   );
 };

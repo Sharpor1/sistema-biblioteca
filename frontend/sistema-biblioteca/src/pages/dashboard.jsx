@@ -5,8 +5,11 @@ import { fetchPrestamos } from '../services/prestamosService';
 import { fetchLibros, fetchEjemplares } from '../services/librosService';
 import { fetchUsuarios } from '../services/usuariosService';
 import { fetchMultas } from '../services/multasService';
+import { generarReporteHTML } from '../utils/reporteTemplate';
+import libraryBg from '../assets/sitio-fondo.png';
 
 export default function Dashboard() {
+  // estadisticas del sistema
   const [stats, setStats] = useState({
     totalLibros: 0,
     ejemplaresDisponibles: 0,
@@ -24,12 +27,17 @@ export default function Dashboard() {
     multasPagadasHoy: 0,
     usuariosConPrestamosAtrasados: 0,
   });
+  
+  // control de estado
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [datosCompletos, setDatosCompletos] = useState(null);
+  
+  // ventana de reporte
   const [modalReporte, setModalReporte] = useState(false);
   const [observaciones, setObservaciones] = useState('');
 
+  // cargar datos del dashboard
   useEffect(() => {
     const loadDashboardData = async () => {
       try {
@@ -120,8 +128,11 @@ export default function Dashboard() {
 
         // Multas pagadas hoy
         const multasPagadasHoy = multas.filter(m => {
-          if (m.estadoPago !== 'pagada' && m.estadoPago !== 'PAGADA') return false;
+          if (m.estadoPago !== 'pagada' && m.estadoPago !== 'PAGADA' && m.estadoPago !== 'pagado') return false;
           if (!m.fechaMulta) return false;
+          // Filtrar multas de monto 0
+          const monto = parseFloat(m.monto || 0);
+          if (monto === 0) return false;
           const fecha = new Date(m.fechaMulta);
           return fecha >= inicioDelDia && fecha < finDelDia;
         }).length;
@@ -245,204 +256,21 @@ export default function Dashboard() {
     });
 
     const multasPagadas = datosCompletos.multas.filter(m => {
-      if (m.estadoPago !== 'pagada' && m.estadoPago !== 'PAGADA') return false;
+      if (m.estadoPago !== 'pagada' && m.estadoPago !== 'PAGADA' && m.estadoPago !== 'pagado') return false;
       if (!m.fechaMulta) return false;
       const fecha = new Date(m.fechaMulta);
       return fecha >= inicioDelDia && fecha < finDelDia;
     });
 
-    // Generar HTML del reporte
-    const reporteHTML = `
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Reporte Diario de Préstamos y Multas - Biblioteca El Rinconcito Mágico</title>
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-    body {
-      font-family: Arial, sans-serif;
-      padding: 30px;
-      color: #000;
-      background: #fff;
-    }
-    h1 {
-      font-size: 18px;
-      margin-bottom: 20px;
-      font-weight: bold;
-    }
-    .fecha {
-      margin-bottom: 30px;
-      font-size: 14px;
-    }
-    h2 {
-      font-size: 14px;
-      margin: 25px 0 10px 0;
-      font-weight: bold;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-bottom: 30px;
-      font-size: 12px;
-    }
-    th {
-      background: #1a1a1a;
-      color: white;
-      padding: 10px;
-      text-align: left;
-      font-weight: normal;
-      border: 1px solid #000;
-    }
-    td {
-      padding: 8px 10px;
-      border: 1px solid #000;
-      background: #fff;
-    }
-    tr {
-      background: #fff;
-    }
-    .observaciones-box {
-      border: 1px solid #000;
-      min-height: 100px;
-      padding: 10px;
-      margin-top: 10px;
-      white-space: pre-wrap;
-    }
-    .empty-row td {
-      height: 40px;
-    }
-    @media print {
-      body { padding: 20px; }
-      .no-print { display: none !important; }
-    }
-    .section-number {
-      display: inline-block;
-      margin-right: 5px;
-    }
-  </style>
-</head>
-<body>
-  <h1>Reporte Diario de Préstamos y Multas</h1>
-  
-  <div class="fecha">
-    Fecha: ${hoy.toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric' })}
-  </div>
-
-  <h2><span class="section-number">1.</span> Préstamos realizados:</h2>
-  <table>
-    <thead>
-      <tr>
-        <th>Código del libro</th>
-        <th>Título</th>
-        <th>Usuario (Nombre y RUT)</th>
-        <th>Tipo de usuario (Docente/Estudiante)</th>
-        <th>Fecha de préstamo</th>
-        <th>Fecha de devolución</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${prestamosConDetalles.length > 0 ? prestamosConDetalles.map(p => `
-        <tr>
-          <td>${p.ejemplar?.codigoEjemplar || 'N/A'}</td>
-          <td>${p.libro?.titulo || 'N/A'}</td>
-          <td>${p.lector?.nombreCompleto || 'N/A'} (${p.lector?.rut || 'N/A'})</td>
-          <td>${p.lector?.rol?.nombre || p.lector?.tipoUsuario || 'N/A'}</td>
-          <td>${new Date(p.fecha_prestamo).toLocaleDateString('es-CL')}</td>
-          <td>${p.fecha_devolucion ? new Date(p.fecha_devolucion).toLocaleDateString('es-CL') : 'N/A'}</td>
-        </tr>
-      `).join('') : '<tr class="empty-row"><td colspan="6">No se realizaron préstamos en esta fecha</td></tr>'}
-    </tbody>
-  </table>
-
-  <h2><span class="section-number">2.</span> Renovaciones:</h2>
-  <table>
-    <thead>
-      <tr>
-        <th>Usuario (Nombre y RUT)</th>
-        <th>Código del libro</th>
-        <th>Título</th>
-        <th>Renovaciones utilizadas</th>
-        <th>Fecha nueva de devolución</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${renovacionesHoy.length > 0 ? renovacionesHoy.map(p => `
-        <tr>
-          <td>${p.lector?.nombreCompleto || 'N/A'} (${p.lector?.rut || 'N/A'})</td>
-          <td>${p.ejemplar?.codigoEjemplar || 'N/A'}</td>
-          <td>${p.libro?.titulo || 'N/A'}</td>
-          <td>${p.renovacionesUtilizadas || 0}</td>
-          <td>${p.fecha_devolucion ? new Date(p.fecha_devolucion).toLocaleDateString('es-CL') : 'N/A'}</td>
-        </tr>
-      `).join('') : '<tr class="empty-row"><td colspan="5">No se realizaron renovaciones en esta fecha</td></tr>'}
-    </tbody>
-  </table>
-
-  <h2><span class="section-number">3.</span> Devoluciones realizadas:</h2>
-  <table>
-    <thead>
-      <tr>
-        <th>Código del libro</th>
-        <th>Título</th>
-        <th>Usuario (Nombre y RUT)</th>
-        <th>Tipo de usuario</th>
-        <th>Fecha de préstamo</th>
-        <th>Fecha de devolución</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${devolucionesConDetalles.length > 0 ? devolucionesConDetalles.map(p => `
-        <tr>
-          <td>${p.ejemplar?.codigoEjemplar || 'N/A'}</td>
-          <td>${p.libro?.titulo || 'N/A'}</td>
-          <td>${p.lector?.nombreCompleto || 'N/A'} (${p.lector?.rut || 'N/A'})</td>
-          <td>${p.lector?.rol?.nombre || p.lector?.tipoUsuario || 'N/A'}</td>
-          <td>${new Date(p.fecha_prestamo).toLocaleDateString('es-CL')}</td>
-          <td>${p.fecha_devolucion_real ? new Date(p.fecha_devolucion_real).toLocaleDateString('es-CL') : 'N/A'}</td>
-        </tr>
-      `).join('') : '<tr class="empty-row"><td colspan="6">No se realizaron devoluciones en esta fecha</td></tr>'}
-    </tbody>
-  </table>
-
-  <h2><span class="section-number">4.</span> Multas registradas:</h2>
-  <table>
-    <thead>
-      <tr>
-        <th>Usuario (Nombre y RUT)</th>
-        <th>Código del libro</th>
-        <th>Días de retraso</th>
-        <th>Monto cobrado</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${multasConLector.length > 0 ? multasConLector.map(m => `
-        <tr>
-          <td>${m.prestamo?.lector?.nombreCompleto || 'N/A'} (${m.prestamo?.lector?.rut || 'N/A'})</td>
-          <td>${m.ejemplar?.codigoEjemplar || 'N/A'}</td>
-          <td>${m.diasRetraso || 0}</td>
-          <td>$${parseFloat(m.monto || 0).toLocaleString('es-CL')}</td>
-        </tr>
-      `).join('') : '<tr class="empty-row"><td colspan="4">No se registraron multas en esta fecha</td></tr>'}
-    </tbody>
-  </table>
-
-  <h2><span class="section-number">5.</span> Observaciones:</h2>
-  <div class="observaciones-box">${observaciones || ''}</div>
-
-  <div style="margin-top: 40px; text-align: center; font-size: 11px; color: #666;" class="no-print">
-    <button onclick="window.print()" style="background: #000; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-size: 14px; margin-bottom: 20px;">
-      🖨️ Imprimir Reporte
-    </button>
-  </div>
-</body>
-</html>
-    `;
+    // Generar HTML del reporte usando la plantilla importada
+    const reporteHTML = generarReporteHTML({
+      prestamosConDetalles,
+      renovacionesHoy,
+      devolucionesConDetalles,
+      multasConLector,
+      observaciones,
+      fecha: hoy
+    });
 
     // Abrir reporte en nueva ventana
     const ventana = window.open('', '_blank');
@@ -455,14 +283,26 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex font-sans text-slate-800">
-      <Sidebar />
+    <div className="min-h-screen flex font-sans text-slate-800 relative">
+      <div 
+        className="absolute inset-0 bg-cover bg-center"
+        style={{
+          backgroundImage: `url(${libraryBg})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat'
+        }}
+      />
+      <div className="absolute inset-0 bg-white/95"/>
       
-      <main className="flex-1 p-8 overflow-y-auto">
+      <div className="relative z-10 flex w-full">
+        <Sidebar />
+      
+      <main className="flex-1 p-6 overflow-y-auto">
         {/* Header */}
-        <header className="mb-8 flex justify-between items-start">
+        <header className="mb-6 flex justify-between items-start">
           <div>
-            <h1 className="text-3xl font-bold text-slate-800">Dashboard</h1>
+            <h1 className="text-2xl font-bold text-slate-800">Dashboard</h1>
             <p className="text-slate-500 text-sm mt-1">Vista general del sistema de biblioteca</p>
           </div>
           <button
@@ -532,17 +372,17 @@ export default function Dashboard() {
             <div className="text-slate-500">Cargando datos...</div>
           </div>
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-4">
             
             {/* Sección: Actividad del Día */}
             <section>
-              <h2 className="text-lg font-bold text-slate-800 mb-3 flex items-center gap-2">
-                <svg className="h-5 w-5 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <h2 className="text-base font-bold text-slate-800 mb-2 flex items-center gap-2">
+                <svg className="h-4 w-4 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
                 Actividad de Hoy
               </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 <StatCard
                   label="Préstamos Realizados Hoy"
                   value={stats.prestamosHoy}
@@ -557,23 +397,30 @@ export default function Dashboard() {
                   icon="check"
                   link="/prestamos"
                 />
-              </div>
-            </section>
-
-            {/* Sección: Alertas de Usuarios */}
-            <section>
-              <h2 className="text-lg font-bold text-slate-800 mb-3 flex items-center gap-2">
-                <svg className="h-5 w-5 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-                Alertas de Usuarios
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <StatCard
                   label="Multas Pagadas Hoy"
                   value={stats.multasPagadasHoy}
                   color="emerald"
                   icon="check"
+                  link="/historial-multas"
+                />
+              </div>
+            </section>
+
+            {/* Sección: Alertas de Usuarios */}
+            <section>
+              <h2 className="text-base font-bold text-slate-800 mb-2 flex items-center gap-2">
+                <svg className="h-4 w-4 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+                Actividad de Usuarios
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <StatCard
+                  label="Usuarios con Préstamos Activos"
+                  value={stats.usuariosConPrestamos}
+                  color="teal"
+                  icon="users"
                   link="/usuarios"
                 />
                 <StatCard
@@ -588,20 +435,13 @@ export default function Dashboard() {
 
             {/* Sección: Actividad Reciente */}
             <section>
-              <h2 className="text-lg font-bold text-slate-800 mb-3 flex items-center gap-2">
-                <svg className="h-5 w-5 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <h2 className="text-base font-bold text-slate-800 mb-2 flex items-center gap-2">
+                <svg className="h-4 w-4 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                 </svg>
-                Actividad Reciente
+                Registro de Actividad
               </h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <StatCard
-                  label="Préstamos Esta Semana"
-                  value={stats.prestamosEstaSemana}
-                  color="purple"
-                  icon="calendar"
-                  link="/prestamos"
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <StatCard
                   label="Préstamos Este Mes"
                   value={stats.prestamosEsteMes}
@@ -610,24 +450,26 @@ export default function Dashboard() {
                   link="/prestamos"
                 />
                 <StatCard
-                  label="Usuarios con Préstamos Activos"
-                  value={stats.usuariosConPrestamos}
-                  color="teal"
-                  icon="users"
-                  link="/usuarios"
+                  label="Préstamos Esta Semana"
+                  value={stats.prestamosEstaSemana}
+                  color="purple"
+                  icon="calendar"
+                  link="/prestamos"
                 />
+
+                
               </div>
             </section>
             
             {/* Sección: Inventario de Libros */}
             <section>
-              <h2 className="text-lg font-bold text-slate-800 mb-3 flex items-center gap-2">
-                <svg className="h-5 w-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <h2 className="text-base font-bold text-slate-800 mb-2 flex items-center gap-2">
+                <svg className="h-4 w-4 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                 </svg>
                 Inventario de Libros
               </h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <StatCard
                   label="Total de Libros"
                   value={stats.totalLibros}
@@ -642,31 +484,25 @@ export default function Dashboard() {
                   icon="check"
                   link="/libros"
                 />
-                <StatCard
-                  label="Ejemplares Prestados"
-                  value={stats.ejemplaresPrestados}
-                  color="amber"
-                  icon="clock"
-                  link="/libros"
-                />
               </div>
             </section>
 
             {/* Sección: Préstamos */}
             <section>
-              <h2 className="text-lg font-bold text-slate-800 mb-3 flex items-center gap-2">
-                <svg className="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <h2 className="text-base font-bold text-slate-800 mb-2 flex items-center gap-2">
+                <svg className="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
                 Estado de Préstamos
               </h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <StatCard
-                  label="Préstamos Activos"
-                  value={stats.prestamosActivos}
-                  color="blue"
-                  icon="active"
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <StatCard
+                  label="Préstamos Finalizados"
+                  value={stats.prestamosFinalizados}
+                  color="slate"
+                  icon="check"
                   link="/prestamos"
+              
                 />
                 <StatCard
                   label="Préstamos Atrasados"
@@ -676,10 +512,10 @@ export default function Dashboard() {
                   link="/prestamos"
                 />
                 <StatCard
-                  label="Préstamos Finalizados"
-                  value={stats.prestamosFinalizados}
-                  color="slate"
-                  icon="check"
+                  label="Préstamos Activos"
+                  value={stats.prestamosActivos}
+                  color="blue"
+                  icon="active"
                   link="/prestamos"
                 />
               </div>
@@ -688,6 +524,7 @@ export default function Dashboard() {
           </div>
         )}
       </main>
+      </div>
     </div>
   );
 }
@@ -721,15 +558,15 @@ function StatCard({ label, value, color, icon, large = false, link }) {
   return (
     <div 
       onClick={handleClick}
-      className={`bg-white p-5 rounded-xl shadow-sm border ${colors.border} hover:shadow-lg transition-all ${link ? 'cursor-pointer hover:scale-[1.02]' : ''}`}
+      className={`bg-white p-3 rounded-xl shadow-sm border ${colors.border} hover:shadow-lg transition-all ${link ? 'cursor-pointer hover:scale-[1.02]' : ''}`}
     >
       <div className="flex items-center justify-between">
         <div className="flex-1">
           <p className="text-slate-500 text-xs font-medium mb-1">{label}</p>
-          <p className={`${large ? 'text-4xl' : 'text-3xl'} font-bold text-slate-800`}>{value}</p>
+          <p className={`${large ? 'text-3xl' : 'text-2xl'} font-bold text-slate-800`}>{value}</p>
         </div>
-        <div className={`h-12 w-12 rounded-full flex items-center justify-center ${colors.bg} flex-shrink-0 ml-3`}>
-          <IconComponent icon={icon} className={`h-6 w-6 ${colors.text}`} />
+        <div className={`h-10 w-10 rounded-full flex items-center justify-center ${colors.bg} flex-shrink-0 ml-3`}>
+          <IconComponent icon={icon} className={`h-5 w-5 ${colors.text}`} />
         </div>
       </div>
     </div>
