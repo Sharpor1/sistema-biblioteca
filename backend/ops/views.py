@@ -247,6 +247,11 @@ class MultaViewSet(viewsets.ModelViewSet):
     queryset = Multa.objects.all()
     serializer_class = MultaSerializer
 
+    def destroy(self, request, *args, **kwargs):
+        return Response(
+            {'detail': 'Accion no permitida'},
+            status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
     @action(detail=True, methods=['post'], url_path='pagar-multa')
     def pagar(self, request, pk=None):
         multa = self.get_object()

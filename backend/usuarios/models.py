@@ -29,7 +29,7 @@ class Lector(models.Model):
     rut = models.CharField(max_length=200, unique=True)
     nombreCompleto = models.CharField(max_length=100)
     contacto = models.EmailField(unique=True)
-    rol = models.ForeignKey('TipoUsuario', on_delete=models.CASCADE)
+    rol = models.ForeignKey('TipoUsuario', on_delete=models.PROTECT)
     estado = models.CharField(max_length=20, choices=ESTADOS, default='activo')
     
     def __str__(self):

@@ -14,12 +14,12 @@ class Prestamo(models.Model):
     ('atrasado', 'Atrasado')]
 
     idPrestamo = models.AutoField(primary_key=True)
-    codigoEjemplar = models.ForeignKey(Ejemplar, on_delete=models.CASCADE)
+    codigoEjemplar = models.ForeignKey(Ejemplar, on_delete=models.PROTECT)
     fecha_prestamo = models.DateTimeField(default=timezone.now)
     fecha_devolucion = models.DateTimeField(null=True, blank=True)
     fecha_devolucion_real = models.DateTimeField(null=True, blank=True)
     estado = models.CharField(max_length=20, choices = ESTADOS, default='activo')
-    lector = models.ForeignKey(Lector, on_delete=models.CASCADE)
+    lector = models.ForeignKey(Lector, on_delete=models.PROTECT)
     renovacionesUtilizadas = models.IntegerField(default=0)
 
     def save(self, *args, **kwargs):
