@@ -10,7 +10,7 @@ export default function Libros() {
 	const [searchTerm, setSearchTerm] = useState('');
 	const [currentPage, setCurrentPage] = useState(1);
 	const itemsPerPage = 7;
-	const [isModalOpen, setIsModalOpen] = useState(false);
+	const [isVentanaOpen, setIsVentanaOpen] = useState(false);
 	const [selectedBook, setSelectedBook] = useState(null);
 	const [showEjemplares, setShowEjemplares] = useState(false);
 	const [showAddEjemplar, setShowAddEjemplar] = useState(false);
@@ -25,7 +25,7 @@ export default function Libros() {
 
 	const codigoRef = useRef(null);
 
-	function openModal() {
+	function openVentana() {
 		setForm({
 			titulo: '',
 			autor: '',
@@ -34,7 +34,7 @@ export default function Libros() {
 			fecha_publicacion: '',
 		});
 		setErrors({});
-		setIsModalOpen(true);
+		setIsVentanaOpen(true);
 	}
 
 	useEffect(() => {
@@ -102,8 +102,8 @@ export default function Libros() {
 		load();
 	}, []);
 
-	function closeModal() {
-		setIsModalOpen(false);
+	function closeVentana() {
+		setIsVentanaOpen(false);
 	}
 
 	async function desactivarLibroCompleto(book) {
@@ -259,7 +259,7 @@ export default function Libros() {
 		return `${prefix}${timestamp}`;
 	}
 
-	function openAddEjemplarModal(libro) {
+	function openAddEjemplarVentana(libro) {
 		const codigoGenerado = generarCodigoEjemplar(libro);
 		setEjemplarForm({ codigoEjemplar: codigoGenerado, estado: 'disponible' });
 		setSelectedBook(libro);
@@ -332,7 +332,7 @@ export default function Libros() {
 			console.log('Enviando libro:', payload);
 			const created = await createLibro(payload);
 			setBooks((b) => [{ ...created, ejemplares: [] }, ...b]);
-			setIsModalOpen(false);
+			setIsVentanaOpen(false);
 			setForm({
 				titulo: "",
 				autor: "",
@@ -371,7 +371,7 @@ export default function Libros() {
 						<h1 className="text-2xl font-bold text-slate-800">Catálogo de Libros</h1>
 						<p className="text-slate-500 text-sm mt-1">Administra el inventario de libros y ejemplares</p>
 					</div>
-					<button onClick={openModal} className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-lg text-sm font-medium shadow-sm transition-all flex items-center gap-2">
+					<button onClick={openVentana} className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-lg text-sm font-medium shadow-sm transition-all flex items-center gap-2">
 						<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
 						Agregar Nuevo Libro
 					</button>
@@ -544,13 +544,13 @@ export default function Libros() {
 				</div>
 
 
-				{/* Add Book Modal */}
-				{isModalOpen && (
+				{/* Add Book Ventana */}
+				{isVentanaOpen && (
 					<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" role="dialog">
 						<div className="bg-white rounded-xl shadow-lg max-w-2xl w-full mx-4 overflow-hidden">
 							<div className="flex justify-between items-center px-6 py-4 border-b border-slate-200">
 								<h3 className="text-lg font-bold text-slate-900">Agregar Nuevo Libro</h3>
-								<button onClick={closeModal} className="text-slate-400 hover:text-slate-600 text-2xl leading-none">×</button>
+								<button onClick={closeVentana} className="text-slate-400 hover:text-slate-600 text-2xl leading-none">×</button>
 							</div>
 							<form onSubmit={handleCreate} className="p-6 space-y-4">
 								<div className="grid grid-cols-2 gap-4">
@@ -582,7 +582,7 @@ export default function Libros() {
 					<input name="editorial" value={form.editorial} onChange={handleChange} placeholder="Reynal & Hitchcock" className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
 								</div>
 								<div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
-									<button type="button" onClick={closeModal} className="px-4 py-2 text-slate-700 border border-slate-300 rounded-lg hover:bg-slate-50 text-sm font-medium">Cancelar</button>
+									<button type="button" onClick={closeVentana} className="px-4 py-2 text-slate-700 border border-slate-300 rounded-lg hover:bg-slate-50 text-sm font-medium">Cancelar</button>
 									<button type="submit" className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium">Crear Libro</button>
 								</div>
 							</form>
@@ -590,7 +590,7 @@ export default function Libros() {
 					</div>
 				)}
 
-				{/* Modal de Ejemplares */}
+				{/* Ventana de Ejemplares */}
 				{showEjemplares && selectedBook && (
 					<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" role="dialog">
 						<div className="bg-white rounded-xl shadow-lg max-w-4xl w-full mx-4 max-h-[80vh] overflow-hidden flex flex-col">
@@ -607,7 +607,7 @@ export default function Libros() {
 									<h4 className="font-semibold text-slate-700">Ejemplares ({selectedBook.ejemplares.length})</h4>
 									<div className="flex gap-2">
 										<button 
-											onClick={() => openAddEjemplarModal(selectedBook)}
+											onClick={() => openAddEjemplarVentana(selectedBook)}
 											className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium"
 										>
 											+ Agregar Ejemplar
@@ -708,7 +708,7 @@ export default function Libros() {
 					</div>
 				)}
 
-				{/* Modal Agregar Ejemplar */}
+				{/* Ventana Agregar Ejemplar */}
 				{showAddEjemplar && selectedBook && (
 					<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" role="dialog">
 						<div className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 overflow-hidden">

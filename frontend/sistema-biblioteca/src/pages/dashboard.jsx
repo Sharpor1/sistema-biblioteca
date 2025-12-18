@@ -34,7 +34,7 @@ export default function Dashboard() {
   const [datosCompletos, setDatosCompletos] = useState(null);
   
   // ventana de reporte
-  const [modalReporte, setModalReporte] = useState(false);
+  const [ventanaReporte, setVentanaReporte] = useState(false);
   const [observaciones, setObservaciones] = useState('');
 
   // cargar datos del dashboard
@@ -173,12 +173,12 @@ export default function Dashboard() {
     loadDashboardData();
   }, []);
 
-  const abrirModalReporte = () => {
+  const abrirVentanaReporte = () => {
     if (!datosCompletos) {
       alert('No hay datos disponibles para generar el reporte');
       return;
     }
-    setModalReporte(true);
+    setVentanaReporte(true);
   };
 
   const generarReporteDiario = () => {
@@ -272,13 +272,13 @@ export default function Dashboard() {
       fecha: hoy
     });
 
-    // Abrir reporte en nueva ventana
-    const ventana = window.open('', '_blank');
-    ventana.document.write(reporteHTML);
-    ventana.document.close();
+    // Abrir reporte en nueva ventana del navegador
+    const ventanaNueva = window.open('', '_blank');
+    ventanaNueva.document.write(reporteHTML);
+    ventanaNueva.document.close();
     
-    // Cerrar modal y limpiar observaciones
-    setModalReporte(false);
+    // Cerrar ventana y limpiar observaciones
+    setVentanaReporte(false);
     setObservaciones('');
   };
 
@@ -306,7 +306,7 @@ export default function Dashboard() {
             <p className="text-slate-500 text-sm mt-1">Vista general del sistema de biblioteca</p>
           </div>
           <button
-            onClick={abrirModalReporte}
+            onClick={abrirVentanaReporte}
             disabled={loading}
             className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-400 text-white px-5 py-2.5 rounded-lg text-sm font-medium shadow-sm transition-all flex items-center gap-2"
           >
@@ -317,13 +317,13 @@ export default function Dashboard() {
           </button>
         </header>
 
-        {/* Modal para Observaciones */}
-        {modalReporte && (
+        {/* Ventana para Observaciones */}
+        {ventanaReporte && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
             <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full mx-4">
               <div className="flex justify-between items-center px-6 py-4 border-b border-slate-200">
                 <h3 className="text-lg font-bold text-slate-900">Generar Reporte Diario</h3>
-                <button onClick={() => setModalReporte(false)} className="text-slate-400 hover:text-slate-600 text-2xl">×</button>
+                <button onClick={() => setVentanaReporte(false)} className="text-slate-400 hover:text-slate-600 text-2xl">×</button>
               </div>
               <div className="p-6">
                 <div className="mb-4">
@@ -340,7 +340,7 @@ export default function Dashboard() {
                 </div>
                 <div className="flex justify-end gap-3">
                   <button
-                    onClick={() => setModalReporte(false)}
+                    onClick={() => setVentanaReporte(false)}
                     className="px-4 py-2 text-slate-700 border border-slate-300 rounded-lg hover:bg-slate-50 text-sm font-medium"
                   >
                     Cancelar
@@ -374,6 +374,31 @@ export default function Dashboard() {
         ) : (
           <div className="space-y-4">
             
+            {/* Sección: Actividad de Usuarios */}
+            <section>
+              <h2 className="text-base font-bold text-slate-800 mb-2 flex items-center gap-2">
+                <svg className="h-4 w-4 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+                Actividad de Usuarios
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <StatCard
+                  label="Usuarios con Préstamos Activos"
+                  value={stats.usuariosConPrestamos}
+                  color="teal"
+                  icon="users"
+                  link="/usuarios"
+                />
+                <StatCard
+                  label="Usuarios con Préstamos Atrasados"
+                  value={stats.usuariosConPrestamosAtrasados}
+                  color="amber"
+                  icon="alert"
+                  link="/usuarios"
+                />
+              </div>
+            </section>
             {/* Sección: Actividad del Día */}
             <section>
               <h2 className="text-base font-bold text-slate-800 mb-2 flex items-center gap-2">
@@ -407,33 +432,42 @@ export default function Dashboard() {
               </div>
             </section>
 
-            {/* Sección: Alertas de Usuarios */}
+
+            {/* Sección: Préstamos */}
             <section>
               <h2 className="text-base font-bold text-slate-800 mb-2 flex items-center gap-2">
-                <svg className="h-4 w-4 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                <svg className="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
-                Actividad de Usuarios
+                Estado de Préstamos
               </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <StatCard
-                  label="Usuarios con Préstamos Activos"
-                  value={stats.usuariosConPrestamos}
-                  color="teal"
-                  icon="users"
-                  link="/usuarios"
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <StatCard
+                  label="Préstamos Finalizados"
+                  value={stats.prestamosFinalizados}
+                  color="slate"
+                  icon="check"
+                  link="/prestamos"
+              
                 />
                 <StatCard
-                  label="Usuarios con Préstamos Atrasados"
-                  value={stats.usuariosConPrestamosAtrasados}
-                  color="amber"
+                  label="Préstamos Atrasados"
+                  value={stats.prestamosAtrasados}
+                  color="rose"
                   icon="alert"
-                  link="/usuarios"
+                  link="/prestamos"
+                />
+                <StatCard
+                  label="Préstamos Activos"
+                  value={stats.prestamosActivos}
+                  color="blue"
+                  icon="active"
+                  link="/prestamos"
                 />
               </div>
             </section>
 
-            {/* Sección: Actividad Reciente */}
+            {/* Sección: Registro de Actividad */}
             <section>
               <h2 className="text-base font-bold text-slate-800 mb-2 flex items-center gap-2">
                 <svg className="h-4 w-4 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -487,39 +521,7 @@ export default function Dashboard() {
               </div>
             </section>
 
-            {/* Sección: Préstamos */}
-            <section>
-              <h2 className="text-base font-bold text-slate-800 mb-2 flex items-center gap-2">
-                <svg className="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                Estado de Préstamos
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <StatCard
-                  label="Préstamos Finalizados"
-                  value={stats.prestamosFinalizados}
-                  color="slate"
-                  icon="check"
-                  link="/prestamos"
-              
-                />
-                <StatCard
-                  label="Préstamos Atrasados"
-                  value={stats.prestamosAtrasados}
-                  color="rose"
-                  icon="alert"
-                  link="/prestamos"
-                />
-                <StatCard
-                  label="Préstamos Activos"
-                  value={stats.prestamosActivos}
-                  color="blue"
-                  icon="active"
-                  link="/prestamos"
-                />
-              </div>
-            </section>
+            
 
           </div>
         )}

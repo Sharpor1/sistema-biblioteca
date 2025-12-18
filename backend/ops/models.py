@@ -21,11 +21,13 @@ class Prestamo(models.Model):
     estado = models.CharField(max_length=20, choices = ESTADOS, default='activo')
     lector = models.ForeignKey(Lector, on_delete=models.PROTECT)
     renovacionesUtilizadas = models.IntegerField(default=0)
+    dias_prestamo = models.IntegerField(null=True, blank=True)
 
     def save(self, *args, **kwargs):
         # Calcular fecha de devolución si no existe
         if not self.fecha_devolucion:
-            duracion = self.lector.rol.diasPrestamoMax
+            # Usar dias_prestamo si está definido, sino usar el máximo del rol
+            duracion = self.dias_prestamo if self.dias_prestamo else self.lector.rol.diasPrestamoMax
             self.fecha_devolucion = self.fecha_prestamo + timedelta(days=duracion)
         
         # Verificar si el préstamo está atrasado

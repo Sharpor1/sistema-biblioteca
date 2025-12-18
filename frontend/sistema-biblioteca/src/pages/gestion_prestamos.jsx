@@ -15,6 +15,7 @@ const LoansManager = () => {
   
   // filtros y busqueda
   const [searchTerm, setSearchTerm] = useState('');
+  const [userTypeFilter, setUserTypeFilter] = useState('todos'); // 'todos', 'estudiante', 'docente'
   const [statusFilter, setStatusFilter] = useState('todos');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 4;
@@ -294,7 +295,7 @@ const LoansManager = () => {
         </div>
 
         {/* Tabla de Préstamos */}
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
           
           {/* Filtros de Tabla */}
           <div className="p-5 border-b border-slate-100">
@@ -311,17 +312,26 @@ const LoansManager = () => {
                    className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent" 
                  />
               </div>
-              <div>
-                  <select 
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                    className="py-2 pl-3 pr-8 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:border-indigo-500 text-slate-600 h-full"
-                  >
-                      <option value="todos">Todos los estados</option>
-                      <option value="activo">Activo</option>
-                      <option value="atrasado">Atrasado</option>
-                      <option value="finalizado">Finalizado</option>
-                  </select>
+              <div className="flex gap-2">
+                <select 
+                  value={userTypeFilter}
+                  onChange={(e) => setUserTypeFilter(e.target.value)}
+                  className="py-2 pl-3 pr-8 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:border-indigo-500 text-slate-600"
+                >
+                  <option value="todos">Todos los usuarios</option>
+                  <option value="estudiante">Estudiantes</option>
+                  <option value="docente">Docentes</option>
+                </select>
+                <select 
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="py-2 pl-3 pr-8 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:border-indigo-500 text-slate-600 h-full"
+                >
+                  <option value="todos">Todos los estados</option>
+                  <option value="activo">Activo</option>
+                  <option value="atrasado">Atrasado</option>
+                  <option value="finalizado">Finalizado</option>
+                </select>
               </div>
             </div>
             
@@ -383,13 +393,21 @@ const LoansManager = () => {
                       if (searchTerm) {
                         const search = searchTerm.toLowerCase();
                         const nombreUsuario = (loan.lector?.nombreCompleto || '').toLowerCase();
+                        const rutUsuario = (loan.lector?.rut || '').toLowerCase();
                         const codigoEj = (loan.codigoEjemplar?.codigoEjemplar || loan.codigoEjemplar || '').toString().toLowerCase();
                         const codigoEjTexto = (loan.codigoEjemplarTexto || '').toString().toLowerCase();
                         const nombreLibro = (loan.libro?.titulo || loan.codigoEjemplar?.libro?.titulo || '').toLowerCase();
                         
-                        if (!nombreUsuario.includes(search) && !codigoEj.includes(search) && !codigoEjTexto.includes(search) && !nombreLibro.includes(search)) {
+                        if (!nombreUsuario.includes(search) && !rutUsuario.includes(search) && !codigoEj.includes(search) && !codigoEjTexto.includes(search) && !nombreLibro.includes(search)) {
                           return false;
                         }
+                      }
+                      
+                      // Filtro por tipo de usuario
+                      if (userTypeFilter !== 'todos') {
+                        const tipoUsuario = (loan.lector?.rol?.nombre || '').toLowerCase();
+                        if (userTypeFilter === 'estudiante' && !tipoUsuario.includes('estudiante')) return false;
+                        if (userTypeFilter === 'docente' && !(tipoUsuario.includes('docente') || tipoUsuario.includes('profesor'))) return false;
                       }
                       
                       // Filtro por fecha de préstamo
@@ -449,9 +467,11 @@ const LoansManager = () => {
                                         )
                                     )}
                                 </div>
-                                {loan.lector?.rol?.nombre && (
-                                    <span className="text-xs text-slate-400">{loan.lector.rol.nombre}</span>
-                                )}
+                                <div className="text-xs text-slate-400">
+                                    {loan.lector?.rut && <span>RUT: {loan.lector.rut}</span>}
+                                    {loan.lector?.rut && loan.lector?.rol?.nombre && <span className="mx-1">•</span>}
+                                    {loan.lector?.rol?.nombre && <span>{loan.lector.rol.nombre}</span>}
+                                </div>
                             </div>
                         </div>
                     </td>
@@ -559,7 +579,7 @@ const LoansManager = () => {
           })()}
         </div>
 
-        {/* Return Loan Modal */}
+        {/* Return Loan Ventana */}
         {returningLoan && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
             <div className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 overflow-hidden">
@@ -579,12 +599,21 @@ const LoansManager = () => {
                   </div>
                   <div className="bg-slate-50 p-3 rounded-lg">
                     <p className="text-xs text-slate-600">Préstamo</p>
-                    <p className="text-sm font-medium text-slate-900">{returningLoan.fecha_prestamo}</p>
+                    <p className="text-sm font-medium text-slate-900">
+                      {new Date(returningLoan.fecha_prestamo).toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                    </p>
                   </div>
                 </div>
                 <div className="bg-slate-50 p-4 rounded-lg">
                   <p className="text-sm text-slate-600 mb-1">Fecha de Devolución Pactada</p>
-                  <p className="text-lg font-semibold text-slate-900">{returningLoan.fecha_devolucion}</p>
+                  <p className="text-lg font-semibold text-slate-900">
+                    {new Date(returningLoan.fecha_devolucion).toLocaleDateString('es-CL', { 
+                      weekday: 'long',
+                      day: 'numeric', 
+                      month: 'long', 
+                      year: 'numeric' 
+                    })}
+                  </p>
                 </div>
 
                 {(() => {
@@ -617,7 +646,7 @@ const LoansManager = () => {
           </div>
         )}
 
-        {/* Modal de Renovar Préstamo */}
+        {/* Ventana de Renovar Préstamo */}
         {renovatingLoan && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
             <div className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4 p-6">

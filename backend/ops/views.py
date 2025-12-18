@@ -1,7 +1,7 @@
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError
-from django.db.models import Count, Q, F
+from django.db.models import Count, Q, F, Case, When, IntegerField
 from inventario.models import Libro
 from rest_framework import status
 from django.utils import timezone
@@ -15,7 +15,17 @@ from usuarios.models import Lector
 
 class PrestamoViewSet(viewsets.ModelViewSet):
 
-    queryset = Prestamo.objects.all()
+    def get_queryset(self):
+        # Ordenar préstamos: atrasados primero, luego activos (más recientes primero), luego finalizados
+        return Prestamo.objects.annotate(
+            orden_estado=Case(
+                When(estado='atrasado', then=1),
+                When(estado='activo', then=2),
+                When(estado='finalizado', then=3),
+                default=4,
+                output_field=IntegerField(),
+            )
+        ).order_by('orden_estado', '-fecha_prestamo')
 
     def get_serializer_class(self):
         if self.action in ['list', 'retrieve']:
@@ -60,10 +70,11 @@ class PrestamoViewSet(viewsets.ModelViewSet):
         if estadoLector.estado == 'bloqueado':
             raise ValidationError({'detail': 'El lector se encuentra BLOQUEADO y no puede realizar préstamos.'})
         
-        # Verificar si tiene multas pendientes
+        # Verificar si tiene multas pendientes con monto mayor a 0
         multas_pendientes = Multa.objects.filter(
             idPrestamo__lector=estadoLector,
-            estadoPago='pendiente'
+            estadoPago='pendiente',
+            monto__gt=0
         ).exists()
         
         if multas_pendientes:
@@ -102,7 +113,7 @@ class PrestamoViewSet(viewsets.ModelViewSet):
         # if ejemplar_fisico.habilitado == False:
         #     raise ValidationError({'detail': f'El ejemplar "{ejemplar_fisico.codigoEjemplar}" no está habilitado para préstamo.'})
 
-        if ejemplar_fisico.estado != 'disponible':
+        if ejemplar_fisico.estado.lower() != 'disponible':
             print("entrando en error")
             raise ValidationError({'detail': f'No hay stock disponible del libro "{ejemplar_fisico.libro}".'})
         
@@ -152,12 +163,10 @@ class PrestamoViewSet(viewsets.ModelViewSet):
                 mensaje = f"Libro devuelto"
                 datosMulta = {'id': multa.idMulta, 'monto': multa.monto, 'estado': 'pagado'}
             else:
-                multa.diasRetraso = 0
-                multa.monto = 0
-                multa.estadoPago = 'pagado'
-                multa.save()
+                # Si no hay atraso, eliminar la multa de $0
+                multa.delete()
                 mensaje = f"Libro devuelto"
-                datosMulta = {'id': multa.idMulta, 'monto': multa.monto, 'estado': 'pagado'}
+                datosMulta = None
 
                 prestamo.lector.estado = 'activo'
                 prestamo.lector.save()

@@ -66,11 +66,9 @@ export default function NuevoPrestamo() {
           };
         });
         
-        // Filtrar ejemplares disponibles
-        const ejemplaresDisponibles = e.filter(ej => ej.estado?.toLowerCase() === 'disponible');
-        
+        // Mostrar TODOS los ejemplares, no filtrar
         setUsuarios(usuariosConInfo);
-        setEjemplares(ejemplaresDisponibles);
+        setEjemplares(e);
         setLibros(l);
         setMultas(m);
       } catch (err) {
@@ -128,14 +126,11 @@ export default function NuevoPrestamo() {
       await createPrestamo({
         lector: usuarioValid.id,
         codigoEjemplar: ejemplarValid.id,
+        dias_prestamo: dias,
       });
       alert('Préstamo registrado');
-      // Recargar datos
-      setRut('');
-      setCodigoEjemplar('');
-      setUsuarioValid(null);
-      setEjemplarValid(null);
-      setDias(0);
+      // Recargar la página
+      window.location.reload();
     } catch (err) {
       console.error('Error al registrar préstamo:', err);
       const errorMsg = err.response?.data?.detail || err.response?.data?.error || err.message || 'Error desconocido';
@@ -317,7 +312,7 @@ export default function NuevoPrestamo() {
           </div>
 
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-            <h3 className="font-semibold mb-4">Libros Disponibles ({
+            <h3 className="font-semibold mb-4">Libros ({
               (() => {
                 const librosConEjemplares = {};
                 ejemplares.forEach(ej => {
@@ -371,21 +366,56 @@ export default function NuevoPrestamo() {
                     }
                   });
                   
-                  return Object.values(librosConEjemplares).map(({ libro, ejemplares: ejemplaresLibro }) => {
+                  // Separar libros con stock disponible de los sin stock
+                  const librosArray = Object.values(librosConEjemplares).map(({ libro, ejemplares: ejemplaresLibro }) => {
+                    const tieneDisponibles = ejemplaresLibro.some(ej => ej.estado?.toLowerCase() === 'disponible' && ej.habilitado !== false);
+                    const todosDadosDeBaja = ejemplaresLibro.every(ej => ej.habilitado === false);
+                    const todosPrestados = ejemplaresLibro.every(ej => ej.estado?.toLowerCase() === 'prestado');
+                    
+                    return {
+                      libro,
+                      ejemplares: ejemplaresLibro,
+                      tieneDisponibles,
+                      todosDadosDeBaja,
+                      todosPrestados
+                    };
+                  });
+                  
+                  // Ordenar: primero con disponibles, luego sin stock
+                  librosArray.sort((a, b) => {
+                    if (a.tieneDisponibles && !b.tieneDisponibles) return -1;
+                    if (!a.tieneDisponibles && b.tieneDisponibles) return 1;
+                    return 0;
+                  });
+                  
+                  return librosArray.map(({ libro, ejemplares: ejemplaresLibro, tieneDisponibles, todosDadosDeBaja, todosPrestados }) => {
                     const isExpanded = expandedLibro === libro.idLibro;
+                    const sinStock = !tieneDisponibles;
                     
                     return (
-                      <div key={libro.idLibro} className="border border-slate-200 rounded-lg overflow-hidden">
+                      <div key={libro.idLibro} className={`border rounded-lg overflow-hidden ${sinStock ? 'border-slate-300 bg-slate-50' : 'border-slate-200'}`}>
                         <div 
-                          className="flex items-center justify-between p-3 cursor-pointer hover:bg-slate-50 transition-colors"
+                          className={`flex items-center justify-between p-3 cursor-pointer transition-colors ${sinStock ? 'hover:bg-slate-100' : 'hover:bg-slate-50'}`}
                           onClick={() => setExpandedLibro(isExpanded ? null : libro.idLibro)}
                         >
                           <div className="flex-1">
-                            <div className="font-medium text-sm text-slate-900">{libro.titulo}</div>
+                            <div className="flex items-center gap-2">
+                              <div className={`font-medium text-sm ${sinStock ? 'text-slate-500' : 'text-slate-900'}`}>
+                                {libro.titulo}
+                              </div>
+                              {todosDadosDeBaja && (
+                                <span className="text-xs text-slate-500">(Dado de baja)</span>
+                              )}
+                              {!todosDadosDeBaja && sinStock && (
+                                <span className="text-xs text-slate-500">(Sin stock)</span>
+                              )}
+                            </div>
                             <div className="text-xs text-slate-500 mt-0.5">{libro.autor}</div>
                           </div>
                           <div className="flex items-center gap-2">
-                            <span className="px-2 py-1 bg-emerald-100 text-emerald-800 rounded-full text-xs font-semibold">
+                            <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                              sinStock ? 'bg-slate-200 text-slate-600' : 'bg-emerald-100 text-emerald-800'
+                            }`}>
                               {ejemplaresLibro.length}
                             </span>
                             <svg 
@@ -401,31 +431,64 @@ export default function NuevoPrestamo() {
                         
                         {isExpanded && (
                           <div className="border-t border-slate-200 bg-slate-50 p-2 space-y-1">
-                            {ejemplaresLibro.map((ej) => (
-                              <div 
-                                key={ej.codigoEjemplar} 
-                                className="bg-white border border-slate-200 rounded p-3 cursor-pointer hover:border-indigo-400 hover:bg-indigo-50 transition-colors"
-                                onClick={() => {
-                                  setCodigoEjemplar(ej.codigoEjemplar);
-                                  setTimeout(() => {
-                                    const ejemplarFound = ejemplares.find((e) => e.codigoEjemplar === ej.codigoEjemplar && e.estado?.toLowerCase() === 'disponible');
-                                    if (ejemplarFound) {
-                                      setEjemplarValid({ ok: true, msg: 'Ejemplar válido', id: ejemplarFound.id, codigoEjemplar: ejemplarFound.codigoEjemplar });
+                            {ejemplaresLibro.map((ej) => {
+                              const estado = ej.estado?.toLowerCase() || 'desconocido';
+                              const esDisponible = estado === 'disponible';
+                              const esPrestado = estado === 'prestado';
+                              const esDeshabilitado = ej.habilitado === false;
+                              
+                              // Definir clases de color según el estado
+                              const borderColor = esDisponible ? 'border-slate-200 hover:border-indigo-400' : 'border-slate-300';
+                              const bgColor = esDisponible ? 'bg-white hover:bg-indigo-50' : 'bg-slate-100';
+                              const cursorClass = esDisponible ? 'cursor-pointer' : 'cursor-not-allowed';
+                              
+                              return (
+                                <div 
+                                  key={ej.codigoEjemplar} 
+                                  className={`border rounded p-3 transition-colors ${borderColor} ${bgColor} ${cursorClass}`}
+                                  onClick={() => {
+                                    if (esDisponible) {
+                                      setCodigoEjemplar(ej.codigoEjemplar);
+                                      setTimeout(() => {
+                                        const ejemplarFound = ejemplares.find((e) => e.codigoEjemplar === ej.codigoEjemplar && e.estado?.toLowerCase() === 'disponible');
+                                        if (ejemplarFound) {
+                                          setEjemplarValid({ ok: true, msg: 'Ejemplar válido', id: ejemplarFound.id, codigoEjemplar: ejemplarFound.codigoEjemplar });
+                                        }
+                                      }, 0);
                                     }
-                                  }, 0);
-                                }}
-                              >
-                                <div className="flex items-center justify-between">
-                                  <div>
-                                    <div className="text-xs text-slate-500 uppercase font-semibold">Código</div>
-                                    <div className="font-bold text-base text-slate-900 mt-0.5">{ej.codigoEjemplar}</div>
+                                  }}
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <div>
+                                      <div className="text-xs text-slate-500 uppercase font-semibold">Código</div>
+                                      <div className={`font-bold text-base mt-0.5 ${esDisponible ? 'text-slate-900' : 'text-slate-500'}`}>
+                                        {ej.codigoEjemplar}
+                                      </div>
+                                    </div>
+                                    <div className="flex flex-col gap-1 items-end">
+                                      {esDeshabilitado && (
+                                        <span className="px-2 py-1 bg-slate-200 text-slate-700 rounded text-xs font-semibold">
+                                          Deshabilitado
+                                        </span>
+                                      )}
+                                      {esDisponible && !esDeshabilitado ? (
+                                        <span className="px-2 py-1 bg-emerald-100 text-emerald-800 rounded text-xs font-semibold">
+                                          Disponible
+                                        </span>
+                                      ) : esPrestado ? (
+                                        <span className="px-2 py-1 bg-orange-100 text-orange-800 rounded text-xs font-semibold">
+                                          Prestado
+                                        </span>
+                                      ) : !esDeshabilitado && (
+                                        <span className="px-2 py-1 bg-slate-200 text-slate-700 rounded text-xs font-semibold">
+                                          {estado.charAt(0).toUpperCase() + estado.slice(1)}
+                                        </span>
+                                      )}
+                                    </div>
                                   </div>
-                                  <span className="px-2 py-1 bg-emerald-100 text-emerald-800 rounded text-xs font-semibold">
-                                    Disponible
-                                  </span>
                                 </div>
-                              </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         )}
                       </div>

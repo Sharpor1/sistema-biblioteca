@@ -6,7 +6,7 @@ import { fetchMultas } from '../services/multasService';
 import libraryBg from '../assets/sitio-fondo.png';
 
 export default function Usuarios() {
-  const [modalOpen, setModalOpen] = useState(false);
+  const [ventanaOpen, setVentanaOpen] = useState(false);
   const [users, setUsers] = useState([]);
   const [tiposUsuario] = useState([
     { idTipo: 1, nombre: 'Estudiante', diasPrestamoMax: 14 },
@@ -17,6 +17,7 @@ export default function Usuarios() {
   const [selectedUser, setSelectedUser] = useState(null);
   const [showUserDetails, setShowUserDetails] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [userTypeFilter, setUserTypeFilter] = useState('todos'); // 'todos', 'estudiante', 'docente'
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6;
   const [userPrestamos, setUserPrestamos] = useState([]);
@@ -41,13 +42,13 @@ export default function Usuarios() {
     load();
   }, []);
 
-  function openModal() {
+  function openVentana() {
     setForm({ rut: '', nombreCompleto: '', contacto: '', rol: 1, estado: 'activo' });
     setErrors({});
-    setModalOpen(true);
+    setVentanaOpen(true);
   }
 
-  function closeModal() { setModalOpen(false); }
+  function closeVentana() { setVentanaOpen(false); }
 
   function handleChange(e) {
     const { name, value } = e.target;
@@ -71,7 +72,7 @@ export default function Usuarios() {
       console.log('Enviando usuario:', form);
       const created = await createUsuario(form);
       setUsers((u) => [created, ...u]);
-      setModalOpen(false);
+      setVentanaOpen(false);
       setForm({ rut: '', nombreCompleto: '', contacto: '', rol: 1, estado: 'activo' });
       setError('');
     } catch (err) {
@@ -135,25 +136,39 @@ export default function Usuarios() {
             <p className="text-slate-500 text-sm">Busca y administra información de alumnos y docentes</p>
           </div>
           <div>
-            <button onClick={openModal} className="bg-indigo-600 text-white px-4 py-2 rounded-lg">Registrar Nuevo Usuario</button>
+            <button onClick={openVentana} className="bg-indigo-600 text-white px-4 py-2 rounded-lg">Registrar Nuevo Usuario</button>
           </div>
         </header>
 
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
           {error && <div className="mb-3 text-rose-600 text-sm">{error}</div>}
-          <div className="mb-4 relative">
-            <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            <input 
-              placeholder="Buscar por nombre, RUT o email..." 
-              className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              value={searchTerm}
+          <div className="mb-4 flex gap-3">
+            <div className="relative flex-1">
+              <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <input 
+                placeholder="Buscar por nombre, RUT o email..." 
+                className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setCurrentPage(1);
+                }}
+              />
+            </div>
+            <select 
+              value={userTypeFilter}
               onChange={(e) => {
-                setSearchTerm(e.target.value);
+                setUserTypeFilter(e.target.value);
                 setCurrentPage(1);
               }}
-            />
+              className="py-2 pl-3 pr-8 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:border-indigo-500 text-slate-600"
+            >
+              <option value="todos">Todos los usuarios</option>
+              <option value="estudiante">Estudiantes</option>
+              <option value="docente">Docentes</option>
+            </select>
           </div>
         </div>
 
@@ -164,11 +179,23 @@ export default function Usuarios() {
           ) : (() => {
             // Filtrar usuarios
             const filteredUsers = users.filter(u => {
-              if (!searchTerm) return true;
-              const search = searchTerm.toLowerCase();
-              return u.nombreCompleto?.toLowerCase().includes(search) ||
-                     u.rut?.toLowerCase().includes(search) ||
-                     u.contacto?.toLowerCase().includes(search);
+              // Filtro por texto de búsqueda
+              if (searchTerm) {
+                const search = searchTerm.toLowerCase();
+                const matchesSearch = u.nombreCompleto?.toLowerCase().includes(search) ||
+                       u.rut?.toLowerCase().includes(search) ||
+                       u.contacto?.toLowerCase().includes(search);
+                if (!matchesSearch) return false;
+              }
+              
+              // Filtro por tipo de usuario
+              if (userTypeFilter !== 'todos') {
+                const tipoUsuario = (u.tipoUsuario || tiposUsuario.find(t => t.idTipo === u.rol)?.nombre || '').toLowerCase();
+                if (userTypeFilter === 'estudiante' && !tipoUsuario.includes('estudiante')) return false;
+                if (userTypeFilter === 'docente' && !(tipoUsuario.includes('docente') || tipoUsuario.includes('profesor'))) return false;
+              }
+              
+              return true;
             });
 
             // Calcular paginación
@@ -286,7 +313,7 @@ export default function Usuarios() {
         </div>
       </main>
 
-      {modalOpen && (
+      {ventanaOpen && (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40">
           <div className="bg-white rounded-lg p-6 w-96 shadow-lg">
             <h3 className="text-lg font-semibold mb-4">Registrar Nuevo Usuario</h3>
@@ -316,7 +343,7 @@ export default function Usuarios() {
               </div>
 
               <div className="flex justify-end gap-2 mt-4">
-                <button type="button" onClick={closeModal} className="px-3 py-1 border rounded">Cancelar</button>
+                <button type="button" onClick={closeVentana} className="px-3 py-1 border rounded">Cancelar</button>
                 <button type="submit" className="px-3 py-1 bg-indigo-600 text-white rounded">Registrar Usuario</button>
               </div>
             </form>
@@ -324,7 +351,7 @@ export default function Usuarios() {
         </div>
       )}
 
-      {/* Modal de Detalles de Usuario */}
+      {/* Ventana de Detalles de Usuario */}
       {showUserDetails && selectedUser && (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 overflow-y-auto py-8">
           <div className="bg-white rounded-xl shadow-lg max-w-3xl w-full mx-4 my-auto">
