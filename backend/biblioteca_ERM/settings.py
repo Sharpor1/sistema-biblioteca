@@ -12,6 +12,9 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 import os
 from pathlib import Path
 from datetime import timedelta
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -24,16 +27,54 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # SECURITY WARNING: keep the secret key used in production secret!
 
 
+
+# --- ENVIRONMENT CONFIGURATION ---
+DJANGO_ENV = os.environ.get('DJANGO_ENV', 'development')
+DEBUG = os.environ.get('DEBUG', 'False') == 'True'
+
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+
+# Security Settings
+if DJANGO_ENV == 'production':
+    CSRF_COOKIE_SECURE = True
+    SESSION_COOKIE_SECURE = True
+    SECURE_SSL_REDIRECT = True
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+else:
+    CSRF_COOKIE_SECURE = False
+    SESSION_COOKIE_SECURE = False
+    SECURE_SSL_REDIRECT = False
+    SECURE_HSTS_SECONDS = 0
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = False
+    SECURE_HSTS_PRELOAD = False
+
+# Database Configuration
+DB_ENGINE = os.environ.get('DB_ENGINE', 'django.db.backends.sqlite3')
+DB_NAME = os.environ.get('DB_NAME', BASE_DIR / 'db.sqlite3')
+
+DATABASES = {
+    'default': {
+        'ENGINE': DB_ENGINE,
+        'NAME': DB_NAME,
+    }
+}
+
+if DB_ENGINE == 'django.db.backends.postgresql':
+    DATABASES['default']['USER'] = os.environ.get('DB_USER')
+    DATABASES['default']['PASSWORD'] = os.environ.get('DB_PASSWORD')
+    DATABASES['default']['HOST'] = os.environ.get('DB_HOST')
+    DATABASES['default']['PORT'] = os.environ.get('DB_PORT', '5432')
+    if DJANGO_ENV == 'production':
+        DATABASES['default']['OPTIONS'] = {'sslmode': 'require'}
+
+# --- CONFIGURACIÓN COMÚN ---
+
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-ncz#dxf*xv5!ifvn2(7*qh_snpp@9_pz+^9z(@3#o2^hl4+pi1')
 
-#DEBUG = os.environ.get('DEBUG', 'True') == 'True'
-DEBUG = False
-
-
-ALLOWED_HOSTS = [os.environ.get('WEBSITE_HOSTNAME'), '127.0.0.1', 'localhost'] if not DEBUG else ['*']
-
 # Application definition
-
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -85,38 +126,12 @@ SIMPLE_JWT = {
 }
 
 # Lista de dominios que pueden enviar formularios (POST) a tu Django
-CSRF_TRUSTED_ORIGINS = [
-    "https://rinconcitomagico-d2ejfmc8aebdbqag.canadacentral-01.azurewebsites.net",          # Tu URL del backend
-    "https://gentle-glacier-04565a81e.3.azurestaticapps.net",   # <--- LA URL DE TU FRONTEND (Static Web App)
-    "http://localhost:5173",                         # Para cuando pruebes en local
-]
+# Lista de dominios que pueden enviar formularios (POST) a tu Django
+CSRF_TRUSTED_ORIGINS = os.environ.get('CSRF_TRUSTED_ORIGINS', 'http://localhost:5173').split(',')
 
 # Configuración de CORS (Permitir peticiones del front al back)
-CORS_ALLOWED_ORIGINS = [
-    "https://gentle-glacier-04565a81e.3.azurestaticapps.net",   # <--- LA URL DE TU FRONTEND
-    "http://localhost:5173",
-]
-
-# Seguridad de cookies y SSL (produccion)
-
-# --- Para desplegar en produccion
-CSRF_COOKIE_SECURE = True
-SESSION_COOKIE_SECURE = True
-SECURE_SSL_REDIRECT = True
-SECURE_HSTS_SECONDS = 31536000
-SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-SECURE_HSTS_PRELOAD = True
-SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-
-# --- Solo para desarrollo local (SIN HTTPS) ---
-
-#CSRF_COOKIE_SECURE = False      # No usar secure si no hay HTTPS
-#SESSION_COOKIE_SECURE = False   # Igual, evitar secure en local
-
-#SECURE_SSL_REDIRECT = False     # No redirigir a HTTPS
-#SECURE_HSTS_SECONDS = 0         # Desactivar HSTS
-#SECURE_HSTS_INCLUDE_SUBDOMAINS = False
-#SECURE_HSTS_PRELOAD = False
+# Configuración de CORS (Permitir peticiones del front al back)
+CORS_ALLOWED_ORIGINS = os.environ.get('CORS_ALLOWED_ORIGINS', 'http://localhost:5173').split(',')
 
 ROOT_URLCONF = 'biblioteca_ERM.urls'
 
@@ -136,8 +151,6 @@ TEMPLATES = [
 ]
 
 # Password validation
-# https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
-
 AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
@@ -153,46 +166,19 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-
 # Internationalization
-# https://docs.djangoproject.com/en/5.2/topics/i18n/
-
 LANGUAGE_CODE = 'en-us'
-
 TIME_ZONE = 'UTC'
-
 USE_I18N = True
-
 USE_TZ = True
 
-
 # Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/5.2/howto/static-files/
-
-
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATIC_URL = '/static/'
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
 # Default primary key field type
-# https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
-
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
-# Configuración de Base de Datos
-
-DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': 'biblioteca_db',
-            'USER': 'postgresql',
-            'PASSWORD': 'Rinconcito-magico',
-            'HOST': 'db-biblioteca-prod.postgres.database.azure.com',
-            'PORT': '5432',
-            'OPTIONS': {
-                'sslmode': 'require',
-            },
-        }
-    }
 
 SWAGGER_SETTINGS = {
     'SECURITY_DEFINITIONS': {
@@ -202,7 +188,6 @@ SWAGGER_SETTINGS = {
             'in': 'header'
         }
     }
-
 }
 
 
