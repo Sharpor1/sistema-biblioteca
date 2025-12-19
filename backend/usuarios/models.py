@@ -24,6 +24,7 @@ class Lector(models.Model):
     ESTADOS = (
         ('activo', 'Activo'),
         ('bloqueado', 'Bloqueado'),
+        ('inactivo', 'Inactivo'),
     )
 
     rut = models.CharField(max_length=200, unique=True)
