@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useNotification } from '../context/NotificationContext';
 import Sidebar from '../components/Sidebar';
 import { fetchPrestamos } from '../services/prestamosService';
 import { fetchLibros, fetchEjemplares } from '../services/librosService';
@@ -9,6 +10,7 @@ import { generarReporteHTML } from '../utils/reporteTemplate';
 import libraryBg from '../assets/sitio-fondo.png';
 
 export default function Dashboard() {
+  const { showNotification } = useNotification();
   // estadisticas del sistema
   const [stats, setStats] = useState({
     totalLibros: 0,
@@ -27,12 +29,12 @@ export default function Dashboard() {
     multasPagadasHoy: 0,
     usuariosConPrestamosAtrasados: 0,
   });
-  
+
   // control de estado
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [datosCompletos, setDatosCompletos] = useState(null);
-  
+
   // ventana de reporte
   const [ventanaReporte, setVentanaReporte] = useState(false);
   const [observaciones, setObservaciones] = useState('');
@@ -42,7 +44,7 @@ export default function Dashboard() {
     const loadDashboardData = async () => {
       try {
         setLoading(true);
-        
+
         // Cargar todos los datos en paralelo
         const [prestamos, libros, ejemplares, usuarios, multas] = await Promise.all([
           fetchPrestamos(),
@@ -102,15 +104,15 @@ export default function Dashboard() {
         const usuariosConPrestamos = usuariosUnicos.size;
 
         // Calcular stats de ejemplares
-        const ejemplaresDisponibles = ejemplares.filter(e => 
+        const ejemplaresDisponibles = ejemplares.filter(e =>
           e.estado === 'disponible' || e.estado === 'DISPONIBLE'
         ).length;
-        const ejemplaresPrestados = ejemplares.filter(e => 
+        const ejemplaresPrestados = ejemplares.filter(e =>
           e.estado === 'prestado' || e.estado === 'PRESTADO'
         ).length;
 
         // Multas pendientes
-        const multasPendientes = multas.filter(m => 
+        const multasPendientes = multas.filter(m =>
           m.estadoPago === 'pendiente' || m.estadoPago === 'PENDIENTE'
         ).length;
 
@@ -175,7 +177,7 @@ export default function Dashboard() {
 
   const abrirVentanaReporte = () => {
     if (!datosCompletos) {
-      alert('No hay datos disponibles para generar el reporte');
+      showNotification('No hay datos disponibles para generar el reporte', 'warning');
       return;
     }
     setVentanaReporte(true);
@@ -209,16 +211,16 @@ export default function Dashboard() {
     const prestamosConDetalles = prestamosHoy.map(p => {
       // codigoEjemplar puede venir como ID o como objeto
       const ejemplarId = typeof p.codigoEjemplar === 'object' ? p.codigoEjemplar?.id : p.codigoEjemplar;
-      
+
       // Buscar el ejemplar por ID
       const ejemplar = datosCompletos.ejemplares.find(e => e.id === ejemplarId || e.idEjemplar === ejemplarId);
-      
+
       // Buscar el libro por ID del ejemplar
       const libro = ejemplar ? datosCompletos.libros.find(l => l.idLibro === ejemplar.libro) : null;
-      
+
       // También intentar usar el libro que viene en el préstamo si existe
       const libroFinal = libro || p.libro;
-      
+
       return { ...p, libro: libroFinal, ejemplar };
     });
 
@@ -276,7 +278,7 @@ export default function Dashboard() {
     const ventanaNueva = window.open('', '_blank');
     ventanaNueva.document.write(reporteHTML);
     ventanaNueva.document.close();
-    
+
     // Cerrar ventana y limpiar observaciones
     setVentanaReporte(false);
     setObservaciones('');
@@ -284,7 +286,7 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen flex font-sans text-slate-800 relative">
-      <div 
+      <div
         className="absolute inset-0 bg-cover bg-center"
         style={{
           backgroundImage: `url(${libraryBg})`,
@@ -293,239 +295,239 @@ export default function Dashboard() {
           backgroundRepeat: 'no-repeat'
         }}
       />
-      <div className="absolute inset-0 bg-white/95"/>
-      
+      <div className="absolute inset-0 bg-white/95" />
+
       <div className="relative z-10 flex w-full">
         <Sidebar />
-      
-      <main className="flex-1 p-6 overflow-y-auto">
-        {/* Header */}
-        <header className="mb-6 flex justify-between items-start">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-800">Dashboard</h1>
-            <p className="text-slate-500 text-sm mt-1">Vista general del sistema de biblioteca</p>
-          </div>
-          <button
-            onClick={abrirVentanaReporte}
-            disabled={loading}
-            className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-400 text-white px-5 py-2.5 rounded-lg text-sm font-medium shadow-sm transition-all flex items-center gap-2"
-          >
-            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            Generar Reporte Diario
-          </button>
-        </header>
 
-        {/* Ventana para Observaciones */}
-        {ventanaReporte && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full mx-4">
-              <div className="flex justify-between items-center px-6 py-4 border-b border-slate-200">
-                <h3 className="text-lg font-bold text-slate-900">Generar Reporte Diario</h3>
-                <button onClick={() => setVentanaReporte(false)} className="text-slate-400 hover:text-slate-600 text-2xl">×</button>
-              </div>
-              <div className="p-6">
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Observaciones (Opcional)
-                  </label>
-                  <textarea
-                    value={observaciones}
-                    onChange={(e) => setObservaciones(e.target.value)}
-                    rows={6}
-                    placeholder="Ingrese cualquier observación relevante sobre la actividad del día..."
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                  />
+        <main className="flex-1 p-6 overflow-y-auto">
+          {/* Header */}
+          <header className="mb-6 flex justify-between items-start">
+            <div>
+              <h1 className="text-2xl font-bold text-slate-800">Dashboard</h1>
+              <p className="text-slate-500 text-sm mt-1">Vista general del sistema de biblioteca</p>
+            </div>
+            <button
+              onClick={abrirVentanaReporte}
+              disabled={loading}
+              className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-400 text-white px-5 py-2.5 rounded-lg text-sm font-medium shadow-sm transition-all flex items-center gap-2"
+            >
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Generar Reporte Diario
+            </button>
+          </header>
+
+          {/* Ventana para Observaciones */}
+          {ventanaReporte && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full mx-4">
+                <div className="flex justify-between items-center px-6 py-4 border-b border-slate-200">
+                  <h3 className="text-lg font-bold text-slate-900">Generar Reporte Diario</h3>
+                  <button onClick={() => setVentanaReporte(false)} className="text-slate-400 hover:text-slate-600 text-2xl">×</button>
                 </div>
-                <div className="flex justify-end gap-3">
-                  <button
-                    onClick={() => setVentanaReporte(false)}
-                    className="px-4 py-2 text-slate-700 border border-slate-300 rounded-lg hover:bg-slate-50 text-sm font-medium"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    onClick={generarReporteDiario}
-                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium flex items-center gap-2"
-                  >
-                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    Generar Reporte
-                  </button>
+                <div className="p-6">
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                      Observaciones (Opcional)
+                    </label>
+                    <textarea
+                      value={observaciones}
+                      onChange={(e) => setObservaciones(e.target.value)}
+                      rows={6}
+                      placeholder="Ingrese cualquier observación relevante sobre la actividad del día..."
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    />
+                  </div>
+                  <div className="flex justify-end gap-3">
+                    <button
+                      onClick={() => setVentanaReporte(false)}
+                      className="px-4 py-2 text-slate-700 border border-slate-300 rounded-lg hover:bg-slate-50 text-sm font-medium"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={generarReporteDiario}
+                      className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium flex items-center gap-2"
+                    >
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      Generar Reporte
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        )}
-        
-
-        {error && (
-          <div className="mb-6 bg-rose-50 border border-rose-200 text-rose-700 px-4 py-3 rounded-lg">
-            {error}
-          </div>
-        )}
-
-        {loading ? (
-          <div className="flex items-center justify-center h-64">
-            <div className="text-slate-500">Cargando datos...</div>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            
-            {/* Sección: Actividad de Usuarios */}
-            <section>
-              <h2 className="text-base font-bold text-slate-800 mb-2 flex items-center gap-2">
-                <svg className="h-4 w-4 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                </svg>
-                Actividad de Usuarios
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <StatCard
-                  label="Usuarios con Préstamos Activos"
-                  value={stats.usuariosConPrestamos}
-                  color="teal"
-                  icon="users"
-                  link="/usuarios"
-                />
-                <StatCard
-                  label="Usuarios con Préstamos Atrasados"
-                  value={stats.usuariosConPrestamosAtrasados}
-                  color="amber"
-                  icon="alert"
-                  link="/usuarios"
-                />
-              </div>
-            </section>
-            {/* Sección: Actividad del Día */}
-            <section>
-              <h2 className="text-base font-bold text-slate-800 mb-2 flex items-center gap-2">
-                <svg className="h-4 w-4 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                Actividad de Hoy
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                <StatCard
-                  label="Préstamos Realizados Hoy"
-                  value={stats.prestamosHoy}
-                  color="orange"
-                  icon="calendar"
-                  link="/prestamos"
-                />
-                <StatCard
-                  label="Devoluciones de Hoy"
-                  value={stats.devolucionesHoy}
-                  color="green"
-                  icon="check"
-                  link="/prestamos"
-                />
-                <StatCard
-                  label="Multas Pagadas Hoy"
-                  value={stats.multasPagadasHoy}
-                  color="emerald"
-                  icon="check"
-                  link="/historial-multas"
-                />
-              </div>
-            </section>
+          )}
 
 
-            {/* Sección: Préstamos */}
-            <section>
-              <h2 className="text-base font-bold text-slate-800 mb-2 flex items-center gap-2">
-                <svg className="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                Estado de Préstamos
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {error && (
+            <div className="mb-6 bg-rose-50 border border-rose-200 text-rose-700 px-4 py-3 rounded-lg">
+              {error}
+            </div>
+          )}
+
+          {loading ? (
+            <div className="flex items-center justify-center h-64">
+              <div className="text-slate-500">Cargando datos...</div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+
+              {/* Sección: Actividad de Usuarios */}
+              <section>
+                <h2 className="text-base font-bold text-slate-800 mb-2 flex items-center gap-2">
+                  <svg className="h-4 w-4 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                  </svg>
+                  Actividad de Usuarios
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <StatCard
-                  label="Préstamos Finalizados"
-                  value={stats.prestamosFinalizados}
-                  color="slate"
-                  icon="check"
-                  link="/prestamos"
-              
-                />
-                <StatCard
-                  label="Préstamos Atrasados"
-                  value={stats.prestamosAtrasados}
-                  color="rose"
-                  icon="alert"
-                  link="/prestamos"
-                />
-                <StatCard
-                  label="Préstamos Activos"
-                  value={stats.prestamosActivos}
-                  color="blue"
-                  icon="active"
-                  link="/prestamos"
-                />
-              </div>
-            </section>
+                    label="Usuarios con Préstamos Activos"
+                    value={stats.usuariosConPrestamos}
+                    color="teal"
+                    icon="users"
+                    link="/usuarios"
+                  />
+                  <StatCard
+                    label="Usuarios con Préstamos Atrasados"
+                    value={stats.usuariosConPrestamosAtrasados}
+                    color="amber"
+                    icon="alert"
+                    link="/usuarios"
+                  />
+                </div>
+              </section>
+              {/* Sección: Actividad del Día */}
+              <section>
+                <h2 className="text-base font-bold text-slate-800 mb-2 flex items-center gap-2">
+                  <svg className="h-4 w-4 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  Actividad de Hoy
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  <StatCard
+                    label="Préstamos Realizados Hoy"
+                    value={stats.prestamosHoy}
+                    color="orange"
+                    icon="calendar"
+                    link="/prestamos"
+                  />
+                  <StatCard
+                    label="Devoluciones de Hoy"
+                    value={stats.devolucionesHoy}
+                    color="green"
+                    icon="check"
+                    link="/prestamos"
+                  />
+                  <StatCard
+                    label="Multas Pagadas Hoy"
+                    value={stats.multasPagadasHoy}
+                    color="emerald"
+                    icon="check"
+                    link="/historial-multas"
+                  />
+                </div>
+              </section>
 
-            {/* Sección: Registro de Actividad */}
-            <section>
-              <h2 className="text-base font-bold text-slate-800 mb-2 flex items-center gap-2">
-                <svg className="h-4 w-4 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                </svg>
-                Registro de Actividad
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <StatCard
-                  label="Préstamos Este Mes"
-                  value={stats.prestamosEsteMes}
-                  color="cyan"
-                  icon="calendar"
-                  link="/prestamos"
-                />
-                <StatCard
-                  label="Préstamos Esta Semana"
-                  value={stats.prestamosEstaSemana}
-                  color="purple"
-                  icon="calendar"
-                  link="/prestamos"
-                />
 
-                
-              </div>
-            </section>
-            
-            {/* Sección: Inventario de Libros */}
-            <section>
-              <h2 className="text-base font-bold text-slate-800 mb-2 flex items-center gap-2">
-                <svg className="h-4 w-4 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                </svg>
-                Inventario de Libros
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <StatCard
-                  label="Total de Libros"
-                  value={stats.totalLibros}
-                  color="indigo"
-                  icon="book"
-                  link="/libros"
-                />
-                <StatCard
-                  label="Ejemplares Disponibles"
-                  value={stats.ejemplaresDisponibles}
-                  color="emerald"
-                  icon="check"
-                  link="/libros"
-                />
-              </div>
-            </section>
+              {/* Sección: Préstamos */}
+              <section>
+                <h2 className="text-base font-bold text-slate-800 mb-2 flex items-center gap-2">
+                  <svg className="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Estado de Préstamos
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <StatCard
+                    label="Préstamos Finalizados"
+                    value={stats.prestamosFinalizados}
+                    color="slate"
+                    icon="check"
+                    link="/prestamos"
 
-            
+                  />
+                  <StatCard
+                    label="Préstamos Atrasados"
+                    value={stats.prestamosAtrasados}
+                    color="rose"
+                    icon="alert"
+                    link="/prestamos"
+                  />
+                  <StatCard
+                    label="Préstamos Activos"
+                    value={stats.prestamosActivos}
+                    color="blue"
+                    icon="active"
+                    link="/prestamos"
+                  />
+                </div>
+              </section>
 
-          </div>
-        )}
-      </main>
+              {/* Sección: Registro de Actividad */}
+              <section>
+                <h2 className="text-base font-bold text-slate-800 mb-2 flex items-center gap-2">
+                  <svg className="h-4 w-4 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                  </svg>
+                  Registro de Actividad
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <StatCard
+                    label="Préstamos Este Mes"
+                    value={stats.prestamosEsteMes}
+                    color="cyan"
+                    icon="calendar"
+                    link="/prestamos"
+                  />
+                  <StatCard
+                    label="Préstamos Esta Semana"
+                    value={stats.prestamosEstaSemana}
+                    color="purple"
+                    icon="calendar"
+                    link="/prestamos"
+                  />
+
+
+                </div>
+              </section>
+
+              {/* Sección: Inventario de Libros */}
+              <section>
+                <h2 className="text-base font-bold text-slate-800 mb-2 flex items-center gap-2">
+                  <svg className="h-4 w-4 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                  </svg>
+                  Inventario de Libros
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <StatCard
+                    label="Total de Libros"
+                    value={stats.totalLibros}
+                    color="indigo"
+                    icon="book"
+                    link="/libros"
+                  />
+                  <StatCard
+                    label="Ejemplares Disponibles"
+                    value={stats.ejemplaresDisponibles}
+                    color="emerald"
+                    icon="check"
+                    link="/libros"
+                  />
+                </div>
+              </section>
+
+
+
+            </div>
+          )}
+        </main>
       </div>
     </div>
   );
@@ -534,7 +536,7 @@ export default function Dashboard() {
 // Componente reutilizable para tarjetas de estadísticas
 function StatCard({ label, value, color, icon, large = false, link }) {
   const navigate = useNavigate();
-  
+
   const colorClasses = {
     indigo: { text: 'text-indigo-600', bg: 'bg-indigo-50', border: 'border-indigo-200' },
     emerald: { text: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200' },
@@ -558,7 +560,7 @@ function StatCard({ label, value, color, icon, large = false, link }) {
   };
 
   return (
-    <div 
+    <div
       onClick={handleClick}
       className={`bg-white p-3 rounded-xl shadow-sm border ${colors.border} hover:shadow-lg transition-all ${link ? 'cursor-pointer hover:scale-[1.02]' : ''}`}
     >

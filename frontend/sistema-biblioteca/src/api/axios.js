@@ -4,7 +4,7 @@ import axios from 'axios';
 const isDevelopment = import.meta.env.DEV;
 
 const api = axios.create({
-    baseURL: isDevelopment 
+    baseURL: isDevelopment
         ? 'http://127.0.0.1:8000/api'  // Desarrollo local
         : 'https://rinconcitomagico-d2ejfmc8aebdbqag.canadacentral-01.azurewebsites.net/api',  // Producción Azure
 });
@@ -43,6 +43,11 @@ api.interceptors.response.use(
     (response) => response,
     async (error) => {
         const originalRequest = error.config;
+
+        // Si el error es del login, no intentar renovar token ni redirigir
+        if (originalRequest.url.includes('/auth/login/')) {
+            return Promise.reject(error);
+        }
 
         // si da error 401 intentar renovar el token
         if (error.response?.status === 401 && !originalRequest._retry) {
