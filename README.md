@@ -50,16 +50,21 @@ python manage.py runserver
 
 ## 📌 Sobre el proyecto
 
-Este proyecto fue desarrollado en contexto académico en equipo.  
+Proyecto académico desarrollado en equipo.  
 Este repositorio corresponde a un fork donde se destaca mi contribución al frontend.
 
 ---
 
-## 📷 Vista del sistema
+## 👥 Créditos
 
-Aquí puedes agregar capturas del sistema para mejorar la presentación del proyecto.
+- Desarrollo frontend: Marlon Agustín Elías Nilo Estefanía  
+- Desarrollo backend: Francisco Padilla  
+- Modelado de datos: Lucian Muñizaga  
+
+Repositorio original: https://github.com/fr4ncb0x/sistema-biblioteca
 
 ---
+
 
 ## 📎 Notas
 
